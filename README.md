@@ -1,7 +1,11 @@
 # Regenerative-Braking-Development
 Development of the regenerative brake for UniTn Formula SAE
 
-
+## Organization of the git:
+Regenerative-Braking-Development \
+|_ Battery Module E-AGLE : Documents already existent from EAGLE GDrive \
+|_ MATLAB Tutorials Battery Design : BMS following the [tutorial](https://youtu.be/R9UK41vOIRo) \
+|_ Regenerative Brake PAPERS : Papers found in internet concerning regenerative braking
 
 ## Usefull stuff
 ### Markdown basics:
