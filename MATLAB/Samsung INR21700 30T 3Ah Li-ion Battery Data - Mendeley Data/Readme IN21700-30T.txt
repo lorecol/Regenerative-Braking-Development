@@ -12,16 +12,22 @@ at 1C rate to 4.2V, 10mA cut off charge current, at battery temperature of 25deg
 The tests were performed as follows:
 1. Four pulse discharge HPPC test (1, 2, 6, and 12C discharge and 0.5, 1, 2, and 4C charge, 
 with reduced values at lower temperatures) performed at 100, 95, 90, 80, 70..., 20, 15, 10, 5, 2.5 % SOC. ("..._HPPC.mat")  
+
 2. C/20 Discharge and Charge test. ("..._C20DisCh.mat")
+
 3.0.5C ("..._Dis_0p5C.mat"), 2C ("..._Dis_2C.mat"), and two 1C ("..._Cap_1C.mat") discharge tests.  The first 1C discharge test is performed 
 before the UDDS cycle, and the second is performed before the Mix3 cycle.
+
 4.Series of four drive cycles performed, in following order: UDDS(..._UDDS.mat), HWFET(..._HWFET.mat), LA92 (..._LA92.mat), US06 (..._US06.mat).  
+
 5. A series of eight drive cycles (mix 1-8) (..._Mixed#.mat) consist of random mix of UDDS, HWFET, LA92, US06. 
 The drive cycle power profile is calculated for a single Turnigy cell in a compact electric vehicle.
+
 6. The previous tests are repeated for ambient temperatures of 40degC, 25degC, 10degC, 0degC, -10degC, 
 and -20degC, in that order. For tests with ambient temperature below 10degC, a reduced regen current limit 
 is set to prevent premature aging of the cells. The drive cycle power profiles are repeated until 95% of the 
 1C discharge capacity at the respective temperature has been discharged from the cell
+
 7. A series of 16 charges (charge 1-16) (..._Charge##.mat) store the cell charging before and after every drive cycle starting with an inital top
 up before doing the Cap_1C test
 
