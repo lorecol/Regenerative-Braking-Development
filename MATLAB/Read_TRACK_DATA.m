@@ -16,7 +16,7 @@ opts = detectImportOptions(fullfile(path,file));
 opts.PreserveVariableNames=true;
 
 % Import the data
-HVVOLTAGE = readtable(fullfile(path,file), opts);
+DATAFILE = readtable(fullfile(path,file), opts);
 
 % Clear temporary variables
 clear opts
@@ -25,11 +25,11 @@ clear opts
 % Automatic create a figure with a series of subplot. Assuming that the first column is the time
 figure; clf; hold on
 sgtitle(regexprep(file, '_',' '));
-for i=1:(numel(HVVOLTAGE.Properties.VariableNames)-1)
+for i=1:(numel(DATAFILE.Properties.VariableNames)-1)
     subplot(2,2,i)
-    plot(HVVOLTAGE.(HVVOLTAGE.Properties.VariableNames{1}),  HVVOLTAGE.(HVVOLTAGE.Properties.VariableNames{i+1}) )
+    plot(DATAFILE.(DATAFILE.Properties.VariableNames{1}),  DATAFILE.(DATAFILE.Properties.VariableNames{i+1}) )
     xlabel('Time')
-    ylabel(regexprep(HVVOLTAGE.Properties.VariableNames{i+1}, '_', ' '))  % Convert underscore '_' to
+    ylabel(regexprep(DATAFILE.Properties.VariableNames{i+1}, '_', ' '))  % Convert underscore '_' to
 end
 hold off
 
