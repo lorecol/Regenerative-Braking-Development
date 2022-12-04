@@ -30,7 +30,7 @@ assignin('base','T1', battery_data(find([battery_data(1:2).T]==25)).T);
 assignin('base','T2', battery_data(find([battery_data(1:2).T]~=25)).T);
 
 % Display the Battery model
-Model = 'eee_battery.slx';
+Model = 'ee_battery.slx';
 open_system(Model)
 
 %% 
