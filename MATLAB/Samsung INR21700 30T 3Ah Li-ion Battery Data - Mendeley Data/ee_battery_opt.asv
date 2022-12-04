@@ -53,10 +53,10 @@ close_system(Model, 0);
 % List of parameters and initial values prior to optimization
 ParsListMain = {'Vnom', 'R1', 'AH', 'V1', 'AH1'};
 InitGuessMain = [3.6, 0.045, 2.7, 3.4, 1.4];
-ParsListDyn = {'Rp1', 'tau1', 'Rp2', 'tau2'};
-InitGuessDyn = [0.006, 200, 0.006, 200];
-ParsListTemp = {'Vnom_T2', 'R1_T2', 'V1_T2', 'Rp1_T2', 'tau1_T2', 'Rp2_T2', 'tau2_T2'};
-InitGuessTemp = [3.8, 0.055, 3.6, 0.006, 200, 0.006, 200 ];
+ParsListDyn = {'Rp1', 'tau1'};
+InitGuessDyn = [0.006, 200];
+ParsListTemp = {'Vnom_T2', 'R1_T2', 'V1_T2','Rp1_T2','tau1_T2'};
+InitGuessTemp = [3.8, 0.055, 3.6, 0.006, 200 ];
   
 Pars0 = reshape([[ParsListMain ParsListDyn ParsListTemp]; cellstr(num2str([InitGuessMain InitGuessDyn InitGuessTemp]'))'],1,[]);
 fprintf('\t%5s = %s\n', Pars0{:});
@@ -67,7 +67,7 @@ clear Pars0
 % Load single cell Battery model and set parameters
 load_system(Model);
 % Enable Fast Restart to speedup the simulation
-set_param(Model,'FastRestart','off')
+set_param(Model,'FastRestart','on')
   
 Pars = reshape([ParsListMain; cellstr(num2str(InitGuessMain'))'],1,[]);
 for k=1:2:length(Pars)
@@ -108,7 +108,7 @@ for idx_data = 1:num_lines
     num2str(battery_data(idx_data).T) '\circC, Model'];
 end
   
-plot([battery_data(1:num_lines).t]/3600, [battery_data(1:num_lines).v], 'o', [t_model{:}]/3600, [v_model{:}])
+plot([battery_data(1:num_lines).t]/(3600*1e3), [battery_data(1:num_lines).v], 'o', [t_model{:}]/(3600*1e3), [v_model{:}])
 xlabel('Time (hours)');
 ylabel('Battery voltage (V)');
 legend([legend_info_data legend_info_model], 'Location', 'Best');
@@ -147,13 +147,11 @@ fprintf('\t%5s = %s\n', Pars{:});
 clear i_data v_data t_data T_data Ts
 clear k InitGuess
 
-% Da capire ee_battery_lse che funzione è
-
 %% STEP 2) OPTIMIZE CHARGE DYNAMICS PARAMETERS
 
 % Use only one current pulse for optimizing the charge dynamics
-i_pos = battery_data(1).i.*(battery_data(1).i>=0);
-a = find(diff(i_pos)>0,2);
+i_pos=battery_data(1).i.*(battery_data(1).i>=0);
+a=find(diff(i_pos)>0,2);
 b = find(diff(battery_data(1).i));
 c = fix((b(find(b<a(1),1,'last'))+a(1))/2);
 assignin('base','i_data',battery_data(idx_data).i(c+1:a(2)));
@@ -177,7 +175,7 @@ OptParsDyn = fminsearch(@ee_battery_lse, InitGuessDyn, ...
 
 % Update Battery block with optimized charge dynamics parameters
 ParsListMainDyn = [ParsListMain ParsListDyn];
-OptParsMainDyn = [OptPars(1) OptParsDyn(1) OptPars(3:4) InitGuessMain(5) OptParsDyn(2:end)];
+OptParsMainDyn = [OptPars(1) OptParsDyn(1) OptPars(3:4) InitGuessMain(5) OptParsDyn(2:3)];
 Pars = reshape([ParsListMainDyn; cellstr(num2str(OptParsMainDyn'))'],1,[]);
 for k=1:2:length(Pars)
     evalin('base',[Pars{k} '=' Pars{k+1} ';'])
@@ -205,7 +203,7 @@ assignin('base','Ts',t_data(2)-t_data(1))
 assignin('base','v_data', battery_data(2).v);
 
 % Use parameters for T1 as initial guess for T2 parameters
-InitGuessTemp = [OptParsMainDyn(1:2) OptParsMainDyn(4) OptParsMainDyn(6:end)];
+InitGuessTemp = [OptParsMainDyn(1:2) OptParsMainDyn(4) OptParsMainDyn(6:7)];
 Pars = reshape([ParsListTemp; cellstr(num2str(InitGuessTemp'))'],1,[]);
 for k=1:2:length(Pars)
     evalin('base',[Pars{k} '=' Pars{k+1} ';'])
@@ -237,7 +235,7 @@ clear OptParsMainDyn
 % Find index into data for non-room temperatures
   
 % Use only one current pulse for optimizing the charge dynamics
-i_pos = battery_data(idx_data).i.*(battery_data(idx_data).i>=0);
+i_pos=battery_data(idx_data).i.*(battery_data(idx_data).i>=0);
 a = find(diff(i_pos)>0,2);
 b = find(diff(battery_data(idx_data).i));
 c = fix((b(find(b<a(1),1,'last'))+a(1))/2);
@@ -256,13 +254,13 @@ OptCharge = fminsearch(@ee_battery_lse, InitGuessCharge, ...
 assignin('base','AH0',OptCharge);
 
 % Optimize Battery charge dynamics parameters
-assignin('base','ParsList', [ParsListTemp(2) ParsListTemp(4:end)]);
-InitGuessTempDyn = [OptParsTemp(2) InitGuessTemp(4:end)];
+assignin('base','ParsList', [ParsListTemp(2) ParsListTemp(4:5)]);
+InitGuessTempDyn = [OptParsTemp(2) InitGuessTemp(4:5)];
 OptParsTempDyn = fminsearch(@ee_battery_lse, InitGuessTempDyn, ...
                             optimset('TolX', 1e-3));
 
 % Update Battery block with optimized parameters
-OptParsTempDyn = [OptParsTemp(1) OptParsTempDyn(1) OptParsTemp(3) OptParsTempDyn(2:end)];
+OptParsTempDyn = [OptParsTemp(1) OptParsTempDyn(1) OptParsTemp(3) OptParsTempDyn(2:3)];
 Pars = reshape([ParsListTemp; cellstr(num2str(OptParsTempDyn'))'],1,[]);
 for k=1:2:length(Pars)
     evalin('base',[Pars{k} '=' Pars{k+1} ';'])
