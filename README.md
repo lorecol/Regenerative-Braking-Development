@@ -4,22 +4,19 @@ Development of the regenerative brake for UniTn Formula SAE
 
 
 ## Organization of the repository:
-Regenerative-Braking-Development
-``` 
-|_ MATLAB : Matlab scripts and projects
-	|_ Battery Design : Script to generate a battery model 
-	|_ MATLAB Tutorials Battery Design : BMS following the [tutorial](https://youtube.com/playlist?list=PLn8PRpmsu08pYXwR-qihN6abrK3Io97NN) 
-|_ DOCS : Folder containg papers and documents 
-	|_ Thesis
-	|_ Papers : 
-    |_ Regenerative brake : regenerative braking strategy and control
-		|_ Battery : battery modeling, parameters identifications and State-of-Charge estimation
-	|_ Books : books about vehicle dynamics and battery pack design
-|_ FENICE : Fenice engine and battery pack
-	|_ Battery : Documents concerning the actual battery of Fenice 
-	|_ Motor : Documents concerning the actual motor of Fenice
-```
-
+- MATLAB: Matlab scripts and projects
+	- Battery Design: Script to generate a battery model 
+	- MATLAB Tutorials Battery Design: BMS following the [tutorial](https://youtube.com/playlist?list=PLn8PRpmsu08pYXwR-qihN6abrK3Io97NN) 
+- DOCS: Folder containg papers and documents 
+	- Thesis
+	- Papers:
+		- Regenerative brake: regenerative braking strategy and control
+		- Battery: battery modeling, parameters identifications and State-of-Charge estimation 
+	- Books: books about vehicle dynamics and battery pack design
+- FENICE: Fenice engine and battery pack
+	- Battery: Documents concerning the actual battery of Fenice 
+	- Motor: Documents concerning the actual motor of Fenice
+---
 ## Usefull stuff
 ### Markdown basics:
 can be found [here](https://www.markdownguide.org/basic-syntax/)
