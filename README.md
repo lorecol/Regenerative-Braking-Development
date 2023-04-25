@@ -1,20 +1,23 @@
-# Regenerative-Braking-Development
+# Regenerative Braking Development
 Development of the regenerative brake for UniTn Formula SAE
 ![Concept of regenerative braking](https://user-images.githubusercontent.com/81318686/203870797-333f265f-15d4-43d7-b862-97a1fa15ece7.png)
 
 
-## Organization of the git:
+## Organization of the repository:
 Regenerative-Braking-Development
 ``` 
-|_ MATLAB : Matlab stuff 
+|_ MATLAB : Matlab scripts and projects
 	|_ Battery Design : Script to generate a battery model 
 	|_ MATLAB Tutorials Battery Design : BMS following the [tutorial](https://youtube.com/playlist?list=PLn8PRpmsu08pYXwR-qihN6abrK3Io97NN) 
-|_ DOCS : Folder containg PAPERS and documents 
-	|_ Battery Module FENICE : Documents concerning the actual battery of FENICE 
-	|_ Motor Module FENICE : Documents concerning the actual motor of FENICE 
-	|_ Regenerative Brake PAPERS : Papers found in internet concerning regenerative braking 
-	|_ Battery Modelling PAPERS : Papers found in internet concerning battery modelling 
-	|_ BOOKS : Useful general books
+|_ DOCS : Folder containg papers and documents 
+	|_ Thesis
+	|_ Papers : 
+    |_ Regenerative brake : regenerative braking strategy and control
+		|_ Battery : battery modeling, parameters identifications and State-of-Charge estimation
+	|_ Books : books about vehicle dynamics and battery pack design
+|_ FENICE : Fenice engine and battery pack
+	|_ Battery : Documents concerning the actual battery of Fenice 
+	|_ Motor : Documents concerning the actual motor of Fenice
 ```
 
 ## Usefull stuff
