@@ -1,2 +1,0 @@
-Simulink.fileGenControl('reset');
-clear;

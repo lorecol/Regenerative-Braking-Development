@@ -2,6 +2,7 @@
 clc; clear all; close all;
 
 %% Import data from text file
+
 % Script for importing data from the following HV_VOLTAGE file:
 [file,path] = uigetfile('*.csv');
 if isequal(file,0)
@@ -11,6 +12,7 @@ else
 end
 
 %% Set up the Import Options and import the data
+
 % Automatic detect import options
 opts = detectImportOptions(fullfile(path,file));
 opts.PreserveVariableNames=true;
@@ -22,6 +24,7 @@ DATAFILE = readtable(fullfile(path,file), opts);
 clear opts
 
 %% Plot data
+
 % Automatic create a figure with a series of subplot. Assuming that the first column is the time
 figure; clf; hold on
 sgtitle(regexprep(file, '_',' '));
