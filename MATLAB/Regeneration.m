@@ -17,6 +17,7 @@ addpath(genpath(pwd));
 g = vehicle_data.vehicle.g;                     % [m/s^2] Gravity
 dM = vehicle_data.vehicle.dM;                   % [m/s^2] Maximum deceleration during brake
 m = vehicle_data.vehicle.m;                     % [kg] Vehicle mass
+bf = vehicle_data.vehicle.bf;                   % Load balance on the front
 L = vehicle_data.vehicle.L;                     % [m] Wheel base
 Lf = vehicle_data.vehicle.Lf;                   % [m] Distance between vehicle CoM and front wheels axel
 Lr = vehicle_data.vehicle.Lr;                   % [m] Distance between vehicle CoM and rear wheels axel
@@ -38,21 +39,21 @@ burst = 8.75 * C;                               % [A] Maximum burst discharge cu
 
 fprintf('DYNAMICS:\n');
 
-% Static weights on the two axels
-Wfs = m * (Lr/L) * g; % [N] Front
-Wrs = m * (Lf/L) * g; % [N] Rear
-
 % Maximum braking forces on front/rear wheels
-Ff = mu_tr * (Wfs + (hG0/L) * m * dM);                      % [N] Front 
-Fr = mu_tr * (Wrs - (hG0/L) * m * dM);                      % [N] Rear 
+Ff = m * g * (bf * L + (dM/g) * hG0)/L;                         % [Nm] Front
+Fr = m * g * ((1 - bf) * L - (dM/g) * hG0)/L;                   % [Nm] Rear 
 fprintf('   Max braking force on front wheels: %.2f N\n', Ff);
 fprintf('   Max braking force on rear wheels:  %.2f N\n', Fr);
+
+% The above formulas come from a report on the brake disc, written by 
+% Alberto Barban, that can be found on the drive
 
 fprintf('\n');
 
 % Maximum braking torques on front/rear wheels
-Tf = Ff * Rf;                                                 % [Nm] Front
-Tr = Fr * Rr;                                                 % [Nm] Rear 
+Tf = Ff * Rf * mu_tr;                                           % [Nm] Front
+Tr = Fr * Rr * mu_tr;                                           % [Nm] Rear 
+
 fprintf('   Max braking torque on front wheels: %.2f Nm\n', Tf);
 fprintf('   Max braking torque on rear wheels:  %.2f Nm\n', Tr);
 
@@ -60,8 +61,10 @@ fprintf('\n');
 
 % Maximum motor torque to avoid rear wheels lock
 Tm = Tr/tau_red; % [Nm]
-fprintf('   Max torque the motor can provide during brake: Tm = %.2f Nm\n', Tm);
-fprintf('   Max torque that the motor can provide:         max_Torque = %.2f Nm\n', maxTorque);
+fprintf(['   Max torque the motor can provide during brake:          ' ...
+    'Tm = %.2f Nm\n'], Tm);
+fprintf(['   Max torque that the motor can provide, from datasheet:  ' ...
+    'maxTorque = %.2f Nm\n'], maxTorque);
 
 % This braking torque produces a power flow to the battery pack that 
 % depends on the vehicle speed. Now, it is important to verify that maximum
@@ -87,7 +90,8 @@ fprintf('   Maximum regenerative power: P = %.2f KW\n', P);
 
 fprintf('\n');
 
-disp('--------------------------------------------------------------------------------------------');
+disp(['-----------------------------------------------------------------' ...
+    '---------------------------']);
 
 %% ELECTRONICS
 
