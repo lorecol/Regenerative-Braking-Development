@@ -141,7 +141,8 @@ classdef vehicle_data < matlab.System
                           'tyre_r'  ,'Hoosier_18x6_10',                 ...% Rear Tires
                           'lx'      , 0.3,                              ...% [m] Tire relaxation length, for longitudinal slip dynamics
                           'ly'      , 0.3,                              ...% [m] Tire relaxation length, for lateral slip dynamics 
-                          'mu_tr'   , 1.8                               ...% Friction coefficient between tyres and road
+                          'mu_tr'   , 1.8,                              ...% Friction coefficient between tyres and road
+                          'bf'      , 0.45                              ...% Load balance on the front axel
                          );
                       
         % ----------------------------------------------------------------------------
