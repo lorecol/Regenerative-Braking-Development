@@ -71,11 +71,11 @@ clear time Ts;
 % clear fields units;
 % clear i;
 
-%% OPEN-CIRCUIT-VOLTAGE (OCV) ESTIMATION
+%% SOC ESTIMATION FROM CAPACITY DATA
 
-SOCv = [1 0.95 0.9 0.8 0.7 0.6 0.5 0.4 0.3 0.2 0.15 0.1 0.05 0.025]';   % SoC vector
-Cap = 3;                                                                % cell capacity [Ah]
-SOCt = ((data.Capacity + Cap)/Cap);                                     % cell SoC
+SOCv = [1; 0.95; 0.9; 0.8; 0.7; 0.6; 0.5; 0.4; 0.3; 0.2; 0.15; 0.1; 0.05; 0.025];   % SoC vector
+Cap = 3;                                                                            % cell capacity [Ah]
+SOCt = ((data.Capacity + Cap)/Cap);                                                 % cell SoC
 
 % Values of SoC above 1 are not accepted. All values of SoC above 1 are
 % considered equal to 1
@@ -103,13 +103,14 @@ SOCminidx = SOCminidx(end);
 % Cut all data (voltage, current, capacity, temperature and SoC) to the
 % index computed previously
 fields = fieldnames(data);
-for i = 1:numel(fields)
+for i = 1:(numel(fields))
     if(isnumeric(data.(fields{i})))
         data.(fields{i}) = data.(fields{i})(1:SOCminidx);
     end
 end
 
-% Plots
+%% PLOT OF THE DATA
+
 units = [" [V]"; " [A]"; " [°C]"; " [Ah]"; " "];
 for i = 1:(length(fields) - 1)
     if(isnumeric(data.(fields{i})))
@@ -129,6 +130,49 @@ end
 clear fields units;
 clear i;
 clear SOCmin SOCminidx;
+
+%% OPEN-CIRCUIT-VOLTAGE (OCV) ESTIMATION
+
+dt = mean(diff(data.Time));                                 % find mean differece in time values
+dSOC = gradient(data.SOC, dt);                              % compute the slope of SOC data
+
+% Find the indices of SOC data for which the slope is equal to zero
+dSOCidx = find(dSOC == 0);
+
+% Define the vector of SOC values that correspond to a slope of zero
+SOCnew = data.SOC(dSOCidx);
+
+% Get values of voltage that correspond to values of SOC with slope equal
+% to 0
+idxSOC = cell(numel(SOCv), 1);      % SOC indices
+V = cell(numel(SOCv), 2);           % voltage correponding to fixed SOC values
+for i = 1:numel(SOCv)
+    idxSOC{i} = find(abs(SOCnew - SOCv(i)) < 0.0001);
+    V{i, 1} = data.Voltage(idxSOC{i});
+    % Compute the mean for each SOC fixed value
+    V{i, 2} = mean(V{i, 1});
+end
+% Extract the OCV values
+OCV = zeros(size(V, 1), 1);         % Pre-allocate to increase the speed of the loop
+for j = 1:size(V, 1)
+    OCV(j) = V{j, 2};
+end
+
+% Enter the OCV-SoC values within the data structure
+data.OcvSoc = [SOCv OCV];
+
+% Plot the OCV values w.r.t. SOC fixed intervals
+figure, clf;
+grid on;
+plot(data.OcvSoc(:, 1), data.OcvSoc(:, 2), '-o', 'MarkerFaceColor', 'b', 'LineWidth', 1.5);
+xlabel('SoC');
+ylabel('OCV [V]');
+title('OCV');
+
+% Clear some variables
+clear dt dSOC dSOCidx idxSOC SOCnew SOCv;
+clear V OCV;
+clear i j;
 
 %% PARAMETERS IDENTIFICATION
 
