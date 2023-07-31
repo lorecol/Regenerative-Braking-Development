@@ -32,19 +32,14 @@ writeline(visaObj, '*CLS');
 
 % Enable voltage measurements
 writeline(visaObj, ':SENSe:FUNCtion:VOLTage ON');
-% writeline(visaObj, ':SENSe:ELOG:FUNCtion:VOLTage ON');
+
 % Enable current measurements
 writeline(visaObj, ':SENSe:FUNCtion:CURRent ON');
-% writeline(visaObj, ':SENSe:ELOG:FUNCtion:CURRent ON');
 
 % Initialize acquisition
 writeline(visaObj, ':INITiate:IMMediate:ACQuire');
 
 disp('  Initialization done.');
-
-%% Data saving
-
-filename = input("Enter the name of the file where you want to save the collected data: ", "s");
 
 %% CC-CV charge
 
@@ -57,12 +52,6 @@ Vlimreal = 4.2;     % [V] Voltage limit during CC - real application
 Ilimneg = 0.2;      % [A] Current negative limit during CV
 Ilimpos = 2;        % [A] Current positive limit during CV
 
-maxReadings = 100000;               % Max dimension of measured data
-CurrCC = zeros(1, maxReadings);     % Current array for CC mode
-VoltCC = zeros(1, maxReadings);     % Voltage array for CC mode
-
-CurrCV = zeros(1, maxReadings);     % Current array for CV mode
-VoltCV = zeros(1, maxReadings);     % Voltage array for CV mode
 
 %------------------------------
 % Set the operating mode to CC
@@ -121,13 +110,10 @@ end
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % Shut down the output
-writeline(visaObj, sprintf(':OUTPut:STATe %d', 0));
+writeline(visaObj, ':OUTPut:STATe OFF');
 
 disp('  CC charge completed.');
 
-% Trim the measurements
-CurrCC = CurrCC(1:idx);
-VoltCC = VoltCC(1:idx);
 
 %------------------------------
 % Set the operating mode to CV
@@ -188,23 +174,24 @@ end
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % Shut down the output
-writeline(visaObj, sprintf(':OUTPut:STATe %d', 0));
+writeline(visaObj, ':OUTPut:STATe OFF');
 
 disp('  CV charge completed.');
-
-% Trim the measurements
-CurrCV = CurrCV(1:idx);
-VoltCV = VoltCV(1:idx);
 
 disp('>> The battery is fully charged !! <<');
 
 %% Plot voltage and current during CCCV charge
 
-% Concatenate the measurements
-CurrCharge = [CurrCC;                 % Current
-        CurrCV];
-VoltCharge = [VoltCC;                 % Voltage
-        VoltCV];
+% Concatenate the measurements 
+if exist('CurrCC','var')==0 && exist('CurrCV','var')==0
+    print("No data available")
+elseif exist('CurrCC','var')==1 && exist('CurrCV','var')==0
+    CurrCharge=[CurrCC];
+    VoltCharge=[VoltCC];
+elseif exist('CurrCC','var')==1 && exist('CurrCV','var')==1
+    CurrCharge = [CurrCC; CurrCV]; % Current
+    VoltCharge = [VoltCC; VoltCV]; % Voltage
+end
 
 figure;
 subplot(1, 2, 1)
@@ -219,19 +206,28 @@ xlabel('time [s]');
 ylabel('Voltage [V]');
 
 %% Save voltage and current measurement in an external file
+% Create the output subfolder if it doesn't exist
+if ~exist('output', 'dir')
+    mkdir('output');
+end
 
-save(filename, 'CurrCharge', 'VoltCharge');
+% Get the current date as a formatted string (YYYYMMDD format)
+currentDateStr = datestr(now, 'yyyymmdd_HHMM');
+
+% Save the variable to the .mat file with the date-appended filename
+save(fullfile('output',[sprintf('currentCCCV_%s', currentDateStr),'.mat'] ), "CurrCharge")
+save(fullfile('output',[sprintf('voltageCCCV_%s', currentDateStr),'.mat'] ), "VoltCharge")
+
 
 %% Clear some variables
-
 clear Ts Ilev Vliminstr Vlimreal Ilimneg Ilimpos maxReadings;
-clear idx dc_ICC dc_ICC dc_ICV dc_VCV CurrCC VoltCC CurrCV VoltCV CurrCharge VoltCharge;
+clear idx dc_ICC dc_ICC dc_ICV dc_VCV CurrCC VoltCC CurrCV VoltCV;
 
 %% DISCHARGE CYCLES
 
 % Let the cell rest before starting the discharge cycle
 Rest = 10;          % [min]
-WaitBar(sprintf("%g", Rest) + 'minutes rest', Rest * 60);
+%WaitBar(sprintf("%g", Rest) + 'minutes rest', Rest * 60);
 
 % Data
 Ilev = -2;                              % [A] Current level during discharge
@@ -271,14 +267,12 @@ for cycle = 1:numDisCycles
 
     % Measure the voltage
     dc_VDis = str2double(writeread(visaObj, ':MEASure:SCALar:VOLTage:DC?'));
-    % Check if the voltage is below the negative limit
+    
+    % Exit if the voltage is below the negative limit
     if dc_VDis < 3.0
-
         % Disable the output
         writeline(visaObj, ':OUTPut:STATe OFF');
-
-        break;          % Exit if the voltage is less than 3.0 V
-
+        break;     
     end
 
     %%%%%%%%%%%%%%%%%%%%%%%%%%% DISCHARGE CYCLE %%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -352,8 +346,17 @@ xlabel('time [s]');
 ylabel('Voltage [V]');
 
 %% Save voltage and current measurement in an external file
+% Create the output subfolder if it doesn't exist
+if ~exist('output', 'dir')
+    mkdir('output');
+end
 
-save(filename, 'CurrDis', 'VoltDis', '-append');
+% Get the current date as a formatted string (YYYYMMDD format)
+currentDateStr = datestr(now, 'yyyymmdd_HHMM');
+
+% Save the variable to the .mat file with the date-appended filename
+save(fullfile('output',[sprintf('currentDis_%s', currentDateStr),'.mat'] ), "CurrDis")
+save(fullfile('output',[sprintf('voltageDis_%s', currentDateStr),'.mat'] ), "VoltDis")
 
 %% Clear some variables
 
