@@ -45,7 +45,7 @@ disp('  Initialization done.');
 
 % Data
 Ts = 0.1;           % [s] Sampling time
-Ilev = 1;           % [A] Current level during CC
+Ilev = 2;           % [A] Current level during CC
 Vliminstr = 4.4;    % [V] Voltage limit during CC - for the instrument
 Vlimreal = 4.2;     % [V] Voltage limit during CC - real application
 
@@ -114,7 +114,6 @@ writeline(visaObj, ':OUTPut:STATe OFF');
 
 disp('  CC charge completed.');
 
-
 %------------------------------
 % Set the operating mode to CV
 %------------------------------
@@ -180,7 +179,7 @@ disp('  CV charge completed.');
 
 disp('>> The battery is fully charged !! <<');
 
-%% Plot voltage and current during CCCV charge
+% Plot voltage and current during CCCV charge
 
 % Concatenate the measurements 
 if exist('CurrCC','var')==0 && exist('CurrCV','var')==0
@@ -205,7 +204,7 @@ title('CCCV charge - Voltage');
 xlabel('time [s]');
 ylabel('Voltage [V]');
 
-%% Save voltage and current measurement in an external file
+% Save voltage and current measurement in an external file
 % Create the output subfolder if it doesn't exist
 if ~exist('output', 'dir')
     mkdir('output');
@@ -219,20 +218,18 @@ save(fullfile('output',[sprintf('currentCCCV_%s', currentDateStr),'.mat'] ), "Cu
 save(fullfile('output',[sprintf('voltageCCCV_%s', currentDateStr),'.mat'] ), "VoltCharge")
 
 
-%% Clear some variables
+% Clear some variables
 clear Ts Ilev Vliminstr Vlimreal Ilimneg Ilimpos maxReadings;
 clear idx dc_ICC dc_ICC dc_ICV dc_VCV CurrCC VoltCC CurrCV VoltCV;
 
 %% DISCHARGE CYCLES
 
-% Let the cell rest before starting the discharge cycle
-Rest = 10;          % [min]
-%WaitBar(sprintf("%g", Rest) + 'minutes rest', Rest * 60);
-
 % Data
-Ilev = -2;                              % [A] Current level during discharge
+Ilev = -3;                              % [A] Current level during discharge
 Vlimreal = 4.2;                         % [V] Voltage limit during discharge
-TDis = 12;                              % [min] Period of one discharge cycle 
+Vlimlow = 2.55;                         % [V] Lower voltage limit during discharge
+TDis = 8;                              % [min] Period of one discharge cycle 
+Rest = 5;                              % [min] Rest period
 Ts = 0.1;                               % [s] Sampling time
 disCapStep = 0.1;                       % 10% SOC decrease in each discharge
 
@@ -244,11 +241,11 @@ maxReadingsDis = (TDis * 60)/Ts;          % Number of samples during one dischar
 maxReadingsRest = (Rest * 60)/Ts;         % Number of samples during rest periods
 
 % Define time parameter for one discharge 
-t = zeros(1, (maxReadingsDis + maxReadingsRest) * numDisCycles);
+t = zeros(1, maxReadingsRest + (maxReadingsDis + maxReadingsRest) * numDisCycles);
 % Current array for one discharge
-CurrDis = zeros(1, (maxReadingsDis + maxReadingsRest) * numDisCycles);
+CurrDis = zeros(1, maxReadingsRest + (maxReadingsDis + maxReadingsRest) * numDisCycles);
 % Voltage array for one discharge
-VoltDis = zeros(1, (maxReadingsDis + maxReadingsRest) * numDisCycles);
+VoltDis = zeros(1, maxReadingsRest + (maxReadingsDis + maxReadingsRest) * numDisCycles);
 
 % Set the operating mode to CC
 writeline(visaObj, ':SOURce:FUNCtion CURRENT');
@@ -258,6 +255,48 @@ writeline(visaObj, sprintf(':SOURce:VOLTage:LIMit:POSitive:IMMediate:AMPLitude %
 % Set the output current
 writeline(visaObj, sprintf(':SOURce:CURRent:LEVel:IMMediate:AMPLitude %g', Ilev));
 
+% Measure the OCV at 100% SOC during the rest phase between charge and
+% discharge
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% REST PERIOD %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Rest for a total of 30 minutes
+
+fprintf("%g minutes rest period ...\n", Rest);
+
+for i = 1:maxReadingsRest
+
+    % Measure current
+    dc_IDis = str2double(writeread(visaObj, ':MEASure:SCALar:CURRent:DC?'));
+
+    % Measure voltage
+    dc_VDis = str2double(writeread(visaObj, ':MEASure:SCALar:VOLTage:DC?'));
+
+    % Update time array
+    t(i) = (i - 1) * Ts;
+    % Update the measurement arrays after each measure
+    CurrDis(i) = dc_IDis;
+    VoltDis(i) = dc_VDis;
+
+    % Update completion time every 5 minutes
+%     if (mod(i, (30/Ts)) == 0) && (mod(i, maxReadingsRest) == 1)
+%         % Update rest variable with remaining time until end of operation
+%         Rest = Rest - 5;
+%         % Print the remaining time until end of operation
+%         fprintf("   %g minutes until the end...\n", Rest);
+%     elseif mod(i, maxReadingsRest) == 0
+%         % Reset rest variable to its original value
+%         Rest = 30;
+%         % Notify end of operation
+%         fprintf("   Rest period terminated !!\n");
+%     end
+
+    % Sampling time
+    pause(Ts);
+
+end
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+% Start discharge cycles with 10% SOC decrements
+%%%%%%%%%%%%%%%%%%%%%%%%%%% DISCHARGE CYCLE %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 for cycle = 1:numDisCycles
 
     fprintf("Discharge cycle number: %g\n", cycle);
@@ -269,14 +308,14 @@ for cycle = 1:numDisCycles
     dc_VDis = str2double(writeread(visaObj, ':MEASure:SCALar:VOLTage:DC?'));
     
     % Exit if the voltage is below the negative limit
-    if dc_VDis < 3.0
+    if dc_VDis < Vlimlow
         % Disable the output
         writeline(visaObj, ':OUTPut:STATe OFF');
         break;     
     end
 
-    %%%%%%%%%%%%%%%%%%%%%%%%%%% DISCHARGE CYCLE %%%%%%%%%%%%%%%%%%%%%%%%%%%
-    % Continue for a total of 12 minutes
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%% DISCHARGE %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    % Discharge for a total of 12 minutes
 
     for i = 1:maxReadingsDis
     
@@ -286,7 +325,7 @@ for cycle = 1:numDisCycles
         % Measure voltage
         dc_VDis = str2double(writeread(visaObj, ':MEASure:SCALar:VOLTage:DC?'));
     
-        idx = (cycle - 1) * (maxReadingsDis + maxReadingsRest) + i;
+        idx = maxReadingsRest + (cycle - 1) * (maxReadingsDis + maxReadingsRest) + i;
 
         % Update time array
         t(idx) = (idx - 1) * Ts;
@@ -306,7 +345,7 @@ for cycle = 1:numDisCycles
     fprintf("%g minutes rest period ...\n", Rest);
     
     %%%%%%%%%%%%%%%%%%%%%%%%%%% REST PERIOD %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-    % Rest for a total of 10 minutes
+    % Rest for a total of 30 minutes
 
     for i = 1:maxReadingsRest
 
@@ -316,12 +355,25 @@ for cycle = 1:numDisCycles
         % Measure voltage
         dc_VDis = str2double(writeread(visaObj, ':MEASure:SCALar:VOLTage:DC?'));
 
-        idx = (cycle - 1) * (maxReadingsDis + maxReadingsRest) + maxReadingsDis + i;
+        idx = maxReadingsRest + maxReadingsDis + (cycle - 1) * (maxReadingsDis + maxReadingsRest) + i;
         % Update time array
         t(idx) = (idx - 1) * Ts;
         % Update the measurement arrays after each measure
         CurrDis(idx) = dc_IDis;
         VoltDis(idx) = dc_VDis;
+
+        % Update completion time every 5 minutes
+        if (mod(i, (30/Ts)) == 0) && (mod(i, maxReadingsRest) == 1)
+            % Update rest variable with remaining time until end of operation
+            Rest = Rest - 5;
+            % Print the remaining time until end of operation
+            fprintf("   %g minutes until the end...\n", Rest);
+        elseif mod(i, maxReadingsRest) == 0
+            % Reset rest variable to its original value
+            Rest = 30;
+            % Notify end of operation
+            fprintf("   Rest period terminated !!\n");
+        end
 
         % Sampling time
         pause(Ts);
@@ -330,8 +382,9 @@ for cycle = 1:numDisCycles
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 end
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%% Plot voltage and current during the discharge cycles
+% Plot voltage and current during the discharge cycles
  
 figure;
 subplot(1, 2, 1)
@@ -345,7 +398,7 @@ title('Discharge cycle - voltage');
 xlabel('time [s]');
 ylabel('Voltage [V]');
 
-%% Save voltage and current measurement in an external file
+% Save voltage and current measurement in an external file
 % Create the output subfolder if it doesn't exist
 if ~exist('output', 'dir')
     mkdir('output');
@@ -358,7 +411,7 @@ currentDateStr = datestr(now, 'yyyymmdd_HHMM');
 save(fullfile('output',[sprintf('currentDis_%s', currentDateStr),'.mat'] ), "CurrDis")
 save(fullfile('output',[sprintf('voltageDis_%s', currentDateStr),'.mat'] ), "VoltDis")
 
-%% Clear some variables
+% Clear some variables
 
 clear Rest Ts Tdis Ilev Vlimreal disCapStep numDisCycles maxReadingsDis maxReadingsRest;
 clear idx i cycle t dc_IDis dc_VDis CurrDis VoltDis;
