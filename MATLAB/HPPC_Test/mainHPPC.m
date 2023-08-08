@@ -10,7 +10,6 @@ disp('STEP 1 - ENABLE COMMUNICATION WITH THE INSTRUMENT:');
 Instrlist = visadevlist;
 % Create VISA object
 visaObj = visadev(Instrlist.ResourceName);
-
 % Set the timeout value
 visaObj.Timeout = 10;       % [s]
 
@@ -385,7 +384,6 @@ end
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % Plot voltage and current during the discharge cycles
- 
 figure;
 subplot(1, 2, 1)
 plot(t, CurrDis);
@@ -412,6 +410,5 @@ save(fullfile('output',[sprintf('currentDis_%s', currentDateStr),'.mat'] ), "Cur
 save(fullfile('output',[sprintf('voltageDis_%s', currentDateStr),'.mat'] ), "VoltDis")
 
 % Clear some variables
-
 clear Rest Ts Tdis Ilev Vlimreal disCapStep numDisCycles maxReadingsDis maxReadingsRest;
 clear idx i cycle t dc_IDis dc_VDis CurrDis VoltDis;
