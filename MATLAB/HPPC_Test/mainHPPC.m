@@ -1,6 +1,6 @@
-clear all;
-close all;
-clc;
+%% Clear variables
+clear all; close all; clc;
+addpath(genpath(pwd));
 
 %% Estabilish connection with the instrument
 
