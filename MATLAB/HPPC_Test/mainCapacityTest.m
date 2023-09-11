@@ -2,6 +2,8 @@ clear all;
 close all;
 clc;
 
+addpath(genpath(pwd));
+
 %% Estabilish connection with the instrument
 
 disp('STEP 1 - ENABLE COMMUNICATION WITH THE INSTRUMENT:');

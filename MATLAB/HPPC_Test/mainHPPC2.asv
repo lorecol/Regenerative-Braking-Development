@@ -139,12 +139,12 @@ capacity = 3;                           % [Ahr] Nominal Capacity
 SOC = 100;                              % [%] Initial SOC
 discharge1C = -1*capacity;              % [A] 1C current
 t_discharge1C = 30;                     % [s]
-t_charge075C = 10;                      % [s]
+t_charge1C = 10;                        % [s]
 t_rest_charge_discharge = 40;           % [s]
 charge075C = 0.75*capacity;             % [A] 0.75C current
 dischargeC3= -capacity/3;               % [A] C/3 current
 Vlimreal = 4.2;                         % [V] Voltage limit during discharge
-Vlimlow = 2.8;                          % [V] Lower voltage limit during discharge
+Vlimlow = 2.55;                         % [V] Lower voltage limit during discharge
 Ts = 0.1;                               % [s] Sampling time
 disCapStep = 0.1;                       % [%] 10% SOC decrease in each discharge
 Rest = 60;                              % [s] rest before starting procedure
@@ -205,12 +205,12 @@ for cycle = 1:1/disCapStep
     end
     % Here we don't need to to update SOC since no current has been sinked
     
-    % Charge 0.75C for 10s
-    power_supply.CCmode(Vlimreal,charge075C);
+    % Charge 1C for 10s
+    power_supply.CCmode(Vlimreal,charge1C);
     pause(0.5); 
     % turn the output on
     power_supply.turnON;                
-    for i=1:(t_charge075C)*1/Ts
+    for i=1:(t_charge1C)*1/Ts
         samples= samples + 1;           % Update samples
         current(samples) = power_supply.measureCurrent; % [A] Measure current
         voltage(samples) = power_supply.measureVoltage; % [V] Measure voltage
@@ -220,7 +220,7 @@ for cycle = 1:1/disCapStep
         pause(Ts);                      % Sampling time
     end
     % Update SOC
-    SOC = calcSOC(SOC,capacity,charge1C,t_charge075C);
+    SOC = calcSOC(SOC,capacity,charge1C,t_charge1C);
 
     % turn the output OFF
     power_supply.turnOFF
