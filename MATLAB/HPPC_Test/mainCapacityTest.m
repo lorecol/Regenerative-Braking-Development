@@ -144,8 +144,8 @@ save(fullfile('CapacityTest', [sprintf('CapacityTest_%s', currentDateStr), '.mat
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Compute the capacity of the battery
-DisCapacity = trapz(time, CurrCapacity);                     % [C]
-BatteryCapacity = DisCapacity/(BatteryVolt * 3600);          % [Ah]
+BatteryCapacity = trapz(time, CurrCapacity)/3600;              % [Ah]
+% BatteryCapacity = DisCapacity/(BatteryVolt * 3600);          % [Ah]
 
 fprintf("Battery capacity: %g Ah\n", BatteryCapacity);
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
