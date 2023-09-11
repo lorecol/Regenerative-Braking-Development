@@ -1,168 +1,79 @@
 %% Clear variables
 clear all; close all; clc;
-addpath(genpath(pwd));
+addpath(genpath(pwd))
 
 %% Estabilish connection with the instrument
-
 disp('STEP 1 - ENABLE COMMUNICATION WITH THE INSTRUMENT:');
-
-% Load VISA library
-Instrlist = visadevlist;
-% Create VISA object
-visaObj = visadev(Instrlist.ResourceName);
-% Set the timeout value
-visaObj.Timeout = 10;       % [s]
-
-% Check if the connection is successful
-if strcmp(visaObj.Status, 'open')
-    disp('  Instrument connection established.');
-else
-    error('  Failed to connect to the instrument.');
-end
-
-%% Initialization
-
-disp('STEP 2 - INITIALIZE THE INSTRUMENT:');
-
-% Reset the instrument to pre-defined values 
-writeline(visaObj, '*RST');
-% Clear status command
-writeline(visaObj, '*CLS');
-
-% Enable voltage measurements
-writeline(visaObj, ':SENSe:FUNCtion:VOLTage ON');
-
-% Enable current measurements
-writeline(visaObj, ':SENSe:FUNCtion:CURRent ON');
-
-% Initialize acquisition
-writeline(visaObj, ':INITiate:IMMediate:ACQuire');
-
-disp('  Initialization done.');
+power_supply = PowerSupply;
 
 %% CC-CV charge
-
+disp('STEP 2 - BATTERY CHARGING:');
 % Data
 Ts = 0.1;           % [s] Sampling time
 Ilev = 2;           % [A] Current level during CC
 Vliminstr = 4.4;    % [V] Voltage limit during CC - for the instrument
 Vlimreal = 4.2;     % [V] Voltage limit during CC - real application
-
 Ilimneg = 0.2;      % [A] Current negative limit during CV
 Ilimpos = 2;        % [A] Current positive limit during CV
 
-
-%------------------------------
+%%%%%%%%%%%%%%%%%%%%%%%%%%% CC CHARGE CYCLE %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Set the operating mode to CC
-%------------------------------
-
-disp('STEP 3 - CC MODE:');
-
-writeline(visaObj, ':SOURce:FUNCtion CURRENT');
-
-% Set the voltage limit
-writeline(visaObj, sprintf(':SOURce:VOLTage:LIMit:POSitive:IMMediate:AMPLitude %g', Vliminstr));
-% Set the output current
-writeline(visaObj, sprintf(':SOURce:CURRent:LEVel:IMMediate:AMPLitude %g', Ilev));
-
-% Wait some time before turning the output on
-pause(1);
-
-% Enable the output
-writeline(visaObj, ':OUTPut:STATe ON');
-
-% Initialize index for data collection
-idx = 0;
+disp('- CC MODE:');
+power_supply.CCmode(Vliminstr, Ilev);
+pause(0.5);
+power_supply.turnON;                        % Enable the output
+idx = 0;                                    % Initialize index for data collection
 
 % Take a first measure
-dc_ICC = str2double(writeread(visaObj, ':MEASure:SCALar:CURRent:DC?'));     % [A] Current
-dc_VCC = str2double(writeread(visaObj, ':MEASure:SCALar:VOLTage:DC?'));     % [V] Voltage
-
-% Update index after first measure
-idx = idx + 1;
+dc_ICC = power_supply.measureCurrent;
+dc_VCC = power_supply.measureVoltage;
+idx = idx + 1;                              % Update index
 
 % Update the measurement arrays after first measure
-CurrCC(idx) = dc_ICC;         % Current
-VoltCC(idx) = dc_VCC;         % Voltage
+CurrCC(idx) = dc_ICC;                       % [A] Current
+VoltCC(idx) = dc_VCC;                       % [V] Voltage
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%% CC CHARGE CYCLE %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Continue until the voltage reaches the imposed limit
 while dc_VCC < Vlimreal
-    
-    % Sampling time
-    pause(Ts);
+    pause(Ts);                              % [s] Sampling time
+    dc_ICC = power_supply.measureCurrent;   % [A] Measure current
+    dc_VCC = power_supply.measureVoltage;   % [V] Measure voltage
+    idx = idx + 1;                          % Update index
 
-    % Measure current
-    dc_ICC = str2double(writeread(visaObj, ':MEASure:SCALar:CURRent:DC?'));
-
-    % Measure voltage
-    dc_VCC = str2double(writeread(visaObj, ':MEASure:SCALar:VOLTage:DC?'));
-
-    % Update index after each measure
-    idx = idx + 1;
-    
     % Update the measurement arrays after each measure
     CurrCC(idx) = dc_ICC;
     VoltCC(idx) = dc_VCC;
 
 end
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % Shut down the output
-writeline(visaObj, ':OUTPut:STATe OFF');
-
+power_supply.turnOFF;
 disp('  CC charge completed.');
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%------------------------------
+%%%%%%%%%%%%%%%%%%%%%%%%%%% CV CHARGE CYCLE %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Set the operating mode to CV
-%------------------------------
-
-disp('STEP 4 - CV MODE:');
-
-% Switch to CV
-writeline(visaObj, ':SOURce:FUNCtion VOLTAGE');
-
-% Set the current limits
-writeline(visaObj, sprintf(':SOURce:CURRent:LIMit:NEGative:IMMediate:AMPLitude %g', Ilimneg));       
-writeline(visaObj, sprintf(':SOURce:CURRent:LIMit:POSitive:IMMediate:AMPLitude %g', Ilimpos));         
-% Set the voltage level to the value reached at the end of the CC cycle
-writeline(visaObj, sprintf(':SOURce:VOLTage:LEVel:IMMediate:AMPLitude %g', VoltCC(end)));
-
-% Wait some time before turning the output on
-pause(1);
-
-% Enable the output
-writeline(visaObj, ':OUTPut:STATe ON');
-
-% Initialize index for data collection
-idx = 0;
+disp('- CV MODE:');
+power_supply.CVmode(Ilimneg, Ilimpos, VoltCC(end))
+pause(0.5);
+power_supply.turnON;                        % Enable the output
+idx = 0;                                    % Initialize index for data collection
 
 % Take a first measure
-dc_ICV = str2double(writeread(visaObj, ':MEASure:SCALar:CURRent:DC?'));     % [A] Current
-dc_VCV = str2double(writeread(visaObj, ':MEASure:SCALar:VOLTage:DC?'));     % [V] Voltage
-
-% Update index after first measure
-idx = idx + 1;
+dc_ICV = power_supply.measureCurrent;       % [A] Current
+dc_VCV = power_supply.measureVoltage;       % [V] Voltage
+idx = idx + 1;                              % Update index
 
 % Update the measurement arrays after first measure
 CurrCV(idx) = dc_ICV;
 VoltCV(idx) = dc_VCV;
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%% CV CHARGE CYCLE %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Continue until the current reaches the imposed negative limit
 while dc_ICV > 0.2
-
-    % Sampling time
-    pause(Ts);
-
-    % Measure current
-    dc_ICV = str2double(writeread(visaObj, ':MEASure:SCALar:CURRent:DC?'));
-
-    % Measure voltage
-    dc_VCV = str2double(writeread(visaObj, ':MEASure:SCALar:VOLTage:DC?'));
-
-    % Update index after each measure
-    idx = idx + 1;
+    pause(Ts);                              % Sampling time
+    dc_ICV = power_supply.measureCurrent;   % Measure current
+    dc_VCV = power_supply.measureVoltage;   % Measure voltage
+    idx = idx + 1;                          % Update index
 
     % Update the measurement arrays after each measure
     CurrCV(idx) = dc_ICV;
@@ -172,23 +83,22 @@ end
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % Shut down the output
-writeline(visaObj, ':OUTPut:STATe OFF');
-
+power_supply.turnOFF;
 disp('  CV charge completed.');
 
+% Charge completed
 disp('>> The battery is fully charged !! <<');
 
 % Plot voltage and current during CCCV charge
-
-% Concatenate the measurements 
+% Concatenate the measurements
 if exist('CurrCC','var')==0 && exist('CurrCV','var')==0
     print("No data available")
 elseif exist('CurrCC','var')==1 && exist('CurrCV','var')==0
-    CurrCharge=[CurrCC];
-    VoltCharge=[VoltCC];
+    CurrCharge=CurrCC;
+    VoltCharge=VoltCC;
 elseif exist('CurrCC','var')==1 && exist('CurrCV','var')==1
-    CurrCharge = [CurrCC; CurrCV]; % Current
-    VoltCharge = [VoltCC; VoltCV]; % Voltage
+    CurrCharge = [CurrCC; CurrCV];          % [A] Current
+    VoltCharge = [VoltCC; VoltCV];          % [V] Voltage
 end
 
 figure;
@@ -213,172 +123,134 @@ end
 currentDateStr = datestr(now, 'yyyymmdd_HHMM');
 
 % Save the variable to the .mat file with the date-appended filename
-save(fullfile('output',[sprintf('currentCCCV_%s', currentDateStr),'.mat'] ), "CurrCharge")
-save(fullfile('output',[sprintf('voltageCCCV_%s', currentDateStr),'.mat'] ), "VoltCharge")
-
+save(fullfile('output',[sprintf('charge_data_%s', currentDateStr),'.mat'] ), 'CurrCharge', 'VoltCharge')
 
 % Clear some variables
 clear Ts Ilev Vliminstr Vlimreal Ilimneg Ilimpos maxReadings;
 clear idx dc_ICC dc_ICC dc_ICV dc_VCV CurrCC VoltCC CurrCV VoltCV;
 
-%% DISCHARGE CYCLES
+%% DISCHARGE CYCLES - HPPC
+% This script follow the HPPC test procedure of
+% <https://www.osti.gov/biblio/1186745>
+disp("STEP 3 - HPPC TEST");
 
 % Data
-Ilev = -3;                              % [A] Current level during discharge
+capacity = 3;                           % [Ahr] Nominal Capacity 
+SOC = 100;                              % [%] Initial SOC
+discharge1C = -3;                       % [A] 1C current
+t_discharge1C = 30;                     % [s]
+t_charge1C = 10;                        % [s]
+t_rest_charge_discharge = 40;           % [s]
+charge1C = 3;                           % [A] 1C current
+dischargeC3= -1;                         % [A] C/3 current
 Vlimreal = 4.2;                         % [V] Voltage limit during discharge
 Vlimlow = 2.55;                         % [V] Lower voltage limit during discharge
-TDis = 8;                              % [min] Period of one discharge cycle 
-Rest = 5;                              % [min] Rest period
 Ts = 0.1;                               % [s] Sampling time
-disCapStep = 0.1;                       % 10% SOC decrease in each discharge
+disCapStep = 0.1;                       % [%] 10% SOC decrease in each discharge
+Rest = 60;                              % [s] rest before starting procedure
 
-% Calculate the number of discharge cycles
-numDisCycles = ceil(1/disCapStep);
+% Initialize variables 
+t = 0;                                  % Initialize time array
+samples = 0;                            % Initialize samples array
 
-% Initialize arrays to store measurements
-maxReadingsDis = (TDis * 60)/Ts;          % Number of samples during one discharge cycle
-maxReadingsRest = (Rest * 60)/Ts;         % Number of samples during rest periods
-
-% Define time parameter for one discharge 
-t = zeros(1, maxReadingsRest + (maxReadingsDis + maxReadingsRest) * numDisCycles);
-% Current array for one discharge
-CurrDis = zeros(1, maxReadingsRest + (maxReadingsDis + maxReadingsRest) * numDisCycles);
-% Voltage array for one discharge
-VoltDis = zeros(1, maxReadingsRest + (maxReadingsDis + maxReadingsRest) * numDisCycles);
-
-% Set the operating mode to CC
-writeline(visaObj, ':SOURce:FUNCtion CURRENT');
-
-% Set the voltage limit
-writeline(visaObj, sprintf(':SOURce:VOLTage:LIMit:POSitive:IMMediate:AMPLitude %g', Vlimreal));
-% Set the output current
-writeline(visaObj, sprintf(':SOURce:CURRent:LEVel:IMMediate:AMPLitude %g', Ilev));
-
-% Measure the OCV at 100% SOC during the rest phase between charge and
-% discharge
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%% REST PERIOD %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% Rest for a total of 30 minutes
-
+% Measure the OCV at 100% SOC during the rest phase
 fprintf("%g minutes rest period ...\n", Rest);
-
-for i = 1:maxReadingsRest
-
-    % Measure current
-    dc_IDis = str2double(writeread(visaObj, ':MEASure:SCALar:CURRent:DC?'));
-
-    % Measure voltage
-    dc_VDis = str2double(writeread(visaObj, ':MEASure:SCALar:VOLTage:DC?'));
-
+for i = 1:(Rest*60)*1/Ts
+    samples = samples + 1;              % Update samples
+    current(samples) = power_supply.measureCurrent; % [A] Measure current
+    voltage(samples) = power_supply.measureVoltage; % [V] Measure voltage
+    
     % Update time array
-    t(i) = (i - 1) * Ts;
-    % Update the measurement arrays after each measure
-    CurrDis(i) = dc_IDis;
-    VoltDis(i) = dc_VDis;
-
-    % Update completion time every 5 minutes
-%     if (mod(i, (30/Ts)) == 0) && (mod(i, maxReadingsRest) == 1)
-%         % Update rest variable with remaining time until end of operation
-%         Rest = Rest - 5;
-%         % Print the remaining time until end of operation
-%         fprintf("   %g minutes until the end...\n", Rest);
-%     elseif mod(i, maxReadingsRest) == 0
-%         % Reset rest variable to its original value
-%         Rest = 30;
-%         % Notify end of operation
-%         fprintf("   Rest period terminated !!\n");
-%     end
-
-    % Sampling time
-    pause(Ts);
-
+    t(samples) = t(end) + Ts;
+    pause(Ts);                          % Sampling time
 end
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-% Start discharge cycles with 10% SOC decrements
-%%%%%%%%%%%%%%%%%%%%%%%%%%% DISCHARGE CYCLE %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-for cycle = 1:numDisCycles
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%% STARTING CYCLE %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% We assume that the battery starts from 100% SOC
+for cycle = 1:1/disCapStep
     fprintf("Discharge cycle number: %g\n", cycle);
+    fprintf("HPPC profile")
 
-    % Enable the output
-    writeline(visaObj, ':OUTPut:STATe ON');
-
-    % Measure the voltage
-    dc_VDis = str2double(writeread(visaObj, ':MEASure:SCALar:VOLTage:DC?'));
-    
-    % Exit if the voltage is below the negative limit
-    if dc_VDis < Vlimlow
-        % Disable the output
-        writeline(visaObj, ':OUTPut:STATe OFF');
-        break;     
-    end
-
-    %%%%%%%%%%%%%%%%%%%%%%%%%%%%% DISCHARGE %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-    % Discharge for a total of 12 minutes
-
-    for i = 1:maxReadingsDis
-    
-        % Measure current
-        dc_IDis = str2double(writeread(visaObj, ':MEASure:SCALar:CURRent:DC?'));
-    
-        % Measure voltage
-        dc_VDis = str2double(writeread(visaObj, ':MEASure:SCALar:VOLTage:DC?'));
-    
-        idx = maxReadingsRest + (cycle - 1) * (maxReadingsDis + maxReadingsRest) + i;
-
+    % Discharge 1C for 30s
+    power_supply.CCmode(Vlimreal,discharge1C);
+    pause(0.5); 
+    % turn the output on
+    power_supply.turnON;                
+    for i=1:(t_discharge1C)*1/Ts
+        samples= samples + 1;           % Update samples
+        current(samples) = power_supply.measureCurrent; % [A] Measure current
+        voltage(samples) = power_supply.measureVoltage; % [V] Measure voltage
+        
         % Update time array
-        t(idx) = (idx - 1) * Ts;
-        % Update the measurement arrays after each measure
-        CurrDis(idx) = dc_IDis;
-        VoltDis(idx) = dc_VDis;
-    
-        % Sampling time
-        pause(Ts);
-    
+        t(samples) = t(end) + Ts;
+        pause(Ts);                      % Sampling time
     end
-    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    % Update SOC
+    SOC = calcSOC(SOC,capacity,discharge1C,t_discharge1C);
 
-    % Disable the output
-    writeline(visaObj, ':OUTPut:STATe OFF');
-
-    fprintf("%g minutes rest period ...\n", Rest);
+    % turn the output off
+    power_supply.turnOFF;
     
-    %%%%%%%%%%%%%%%%%%%%%%%%%%% REST PERIOD %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-    % Rest for a total of 30 minutes
-
-    for i = 1:maxReadingsRest
-
-        % Measure current
-        dc_IDis = str2double(writeread(visaObj, ':MEASure:SCALar:CURRent:DC?'));
-    
-        % Measure voltage
-        dc_VDis = str2double(writeread(visaObj, ':MEASure:SCALar:VOLTage:DC?'));
-
-        idx = maxReadingsRest + maxReadingsDis + (cycle - 1) * (maxReadingsDis + maxReadingsRest) + i;
+    % Rest 40s
+    for i=1:(t_rest_charge_discharge)*1/Ts
+        samples= samples + 1;           % Update samples
+        current(samples) = power_supply.measureCurrent; % [A] Measure current
+        voltage(samples) = power_supply.measureVoltage; % [V] Measure voltage
+        
         % Update time array
-        t(idx) = (idx - 1) * Ts;
-        % Update the measurement arrays after each measure
-        CurrDis(idx) = dc_IDis;
-        VoltDis(idx) = dc_VDis;
+        t(samples) = t(end) + Ts;
+        pause(Ts); % Sampling time
+    end
+    % Here we don't need to to update SOC since no current has been sinked
+    
+    % Charge 1C for 10s
+    power_supply.CCmode(Vlimreal,charge1C);
+    pause(0.5); 
+    % turn the output on
+    power_supply.turnON;                
+    for i=1:(t_charge1C)*1/Ts
+        samples= samples + 1;           % Update samples
+        current(samples) = power_supply.measureCurrent; % [A] Measure current
+        voltage(samples) = power_supply.measureVoltage; % [V] Measure voltage
+        
+        % Update time array
+        t(samples) = t(end) + Ts;
+        pause(Ts);                      % Sampling time
+    end
+    % Update SOC
+    SOC = calcSOC(SOC,capacity,charge1C,t_charge1C);
 
-        % Update completion time every 5 minutes
-        if (mod(i, (30/Ts)) == 0) && (mod(i, maxReadingsRest) == 1)
-            % Update rest variable with remaining time until end of operation
-            Rest = Rest - 5;
-            % Print the remaining time until end of operation
-            fprintf("   %g minutes until the end...\n", Rest);
-        elseif mod(i, maxReadingsRest) == 0
-            % Reset rest variable to its original value
-            Rest = 30;
-            % Notify end of operation
-            fprintf("   Rest period terminated !!\n");
+    % turn the output OFF
+    power_supply.turnOFF
+
+    % Discharge C/3 for to the next SOC
+    power_supply.CCmode(Vlimreal,dischargeC3);
+    pause(0.5); 
+    % turn the output on
+    power_supply.turnON;  
+    while SOC >= 100 - 1/disCapStep*cycle
+        samples= samples + 1;           % Update samples
+        current(samples) = power_supply.measureCurrent; % [A] Measure current
+        voltage(samples) = power_supply.measureVoltage; % [V] Measure voltage
+        
+        % Update time array
+        t(samples) = t(end) + Ts;
+        
+        % Update SOC
+        SOC = calcSOC(SOC,capacity,dischargeC3,Ts);
+        pause(Ts);                      % Sampling time
+        
+        % Exit if the voltage is below the negative limit
+        if voltage(end) < Vlimlow
+            disp("Voltage below the limit! Power-off")
+            % Disable the output
+            power_supply.turnOFF;
+            break;     
         end
-
-        % Sampling time
-        pause(Ts);
-
     end
-    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 end
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -386,12 +258,12 @@ end
 % Plot voltage and current during the discharge cycles
 figure;
 subplot(1, 2, 1)
-plot(t, CurrDis);
+plot(t, current);
 title('Discharge cycle - current');
 xlabel('time [s]');
 ylabel('Current [A]');
 subplot(1, 2, 2)
-plot(t, VoltDis);
+plot(t, voltage);
 title('Discharge cycle - voltage');
 xlabel('time [s]');
 ylabel('Voltage [V]');
@@ -406,9 +278,10 @@ end
 currentDateStr = datestr(now, 'yyyymmdd_HHMM');
 
 % Save the variable to the .mat file with the date-appended filename
-save(fullfile('output',[sprintf('currentDis_%s', currentDateStr),'.mat'] ), "CurrDis")
-save(fullfile('output',[sprintf('voltageDis_%s', currentDateStr),'.mat'] ), "VoltDis")
+save(fullfile('output',[sprintf('HPPC_data_%s', currentDateStr),'.mat'] ), 'current', 'voltage')
 
 % Clear some variables
+
 clear Rest Ts Tdis Ilev Vlimreal disCapStep numDisCycles maxReadingsDis maxReadingsRest;
-clear idx i cycle t dc_IDis dc_VDis CurrDis VoltDis;
+clear idx i cycle;
+
