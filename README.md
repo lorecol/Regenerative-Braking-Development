@@ -8,7 +8,7 @@ Development of the regenerative brake for UniTn Formula SAE
 
 ## Organization of the repository:
 - MATLAB: Matlab scripts and projects
-	- REGENEREATION_GENERAL: Script to generate the regenerative brake model informations
+	- REGENERATION_GENERAL: Script to generate the regenerative brake model informations
 	- HPPC_TEST: Script to generate the HPPC test
 	- UNUSED_OTHER: Other scripts that are not used anymore or not used yet or not working or not finished
 		- Battery Design: Script to generate a battery model 
