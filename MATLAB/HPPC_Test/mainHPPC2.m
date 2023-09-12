@@ -137,41 +137,23 @@ disp("STEP 3 - HPPC TEST");
 % Data
 capacity = 3;                           % [Ahr] Nominal Capacity 
 SOC = 100;                              % [%] Initial SOC
-curr_discharge_pulse = -(2/3)*capacity;     % [A] 1C current
+curr_discharge_pulse = -(2/3)*capacity; % [A] 1C current
 t_discharge_pulse = 30;                 % [s]
 t_charge_pulse = 10;                    % [s]
 t_rest_pulse = 40;                      % [s]
-curr_charge_pulse = (2/3)*capacity;      % [A] 0.75C current
+curr_charge_pulse = (2/3)*capacity;     % [A] 0.75C current
 dischargeC3= -capacity/3;               % [A] C/3 current
 Vlimreal = 4.2;                         % [V] Voltage limit during discharge
 Vlimlow = 2.8;                          % [V] Lower voltage limit during discharge
 Ts = 0.1;                               % [s] Sampling time
 disCapStep = 0.1;                       % [%] 10% SOC decrease in each discharge
-Rest = 60;                              % [s] rest before starting procedure
+Rest = 20*60;                           % [s] rest before starting procedure
 
 % Initialize variables 
-samples = 0;                            % Initialize samples array
-current = zeros(10^6);
-voltage = zeros(10^6);
-t = zeros(10^6);
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% REST PERIOD %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% Measure the OCV at 100% SOC during the rest phase
-fprintf("%g seconds rest period ...\n", Rest);
-tic
-for i = 1:(Rest)*1/Ts
-    if toc>=t_discharge_pulse
-        break;
-    end
-    samples = samples + 1;              % Update samples
-    current(samples) = power_supply.measureCurrent; % [A] Measure current
-    voltage(samples) = power_supply.measureVoltage; % [V] Measure voltage
-    
-    % Update time array
-    t(samples) = t(end) + Ts;
-    pause(Ts);                          % Sampling time
-end
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+samples = 0;                            
+%current = zeros(1,10^5);
+%voltage = zeros(1,10^5);
+%t = zeros(10^6);
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%% STARTING CYCLE %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -198,7 +180,7 @@ for cycle = 1:1/disCapStep
         pause(Ts);                      % Sampling time
     end
     % Update SOC
-    SOC = calcSOC(SOC,capacity,curr_discharge_pulse,t_discharge_pulse);
+    SOC = calcSOC(SOC,capacity,curr_charge_pulse,t_discharge_pulse);
 
     % turn the output off
     power_supply.turnOFF;
@@ -238,7 +220,8 @@ for cycle = 1:1/disCapStep
         pause(Ts);                      % Sampling time
     end
     % Update SOC
-    SOC = calcSOC(SOC,capacity,charge1C,t_charge_pulse);
+    SOC = calcSOC(SOC,capacity,curr_charge_pulse,t_charge_pulse);
+    SOC0 = SOC;
 
     % turn the output OFF
     power_supply.turnOFF
@@ -248,7 +231,7 @@ for cycle = 1:1/disCapStep
     pause(0.5); 
     % turn the output on
     power_supply.turnON;  
-    while SOC >= 100 - 1/disCapStep*cycle
+    while SOC >= SOC0 - (1/disCapStep)*cycle
         samples= samples + 1;           % Update samples
         current(samples) = power_supply.measureCurrent; % [A] Measure current
         voltage(samples) = power_supply.measureVoltage; % [V] Measure voltage
@@ -261,13 +244,29 @@ for cycle = 1:1/disCapStep
         pause(Ts);                      % Sampling time
         
         % Exit if the voltage is below the negative limit
-        if voltage(end) < Vlimlow
+        if voltage(samples) < Vlimlow
             disp("Voltage below the limit! Power-off")
             % Disable the output
             power_supply.turnOFF;
             break;     
         end
     end
+
+    % Rest period between 
+    tic
+    for i=1:(Rest)*1/Ts
+        if toc>=Rest
+            break;
+        end
+        samples= samples + 1;           % Update samples
+        current(samples) = power_supply.measureCurrent; % [A] Measure current
+        voltage(samples) = power_supply.measureVoltage; % [V] Measure voltage
+        
+        % Update time array
+        t(samples) = t(end) + Ts;
+        pause(Ts); % Sampling time
+    end
+   
 
 end
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

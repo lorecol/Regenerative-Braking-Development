@@ -1,1 +1,10 @@
 .MATLAB/Read_TRACK_DATA.m
+
+# Windows default autosave extension
+*.asv
+
+# Simulink autosave extension
+*.autosave
+
+# Simulink cache files
+*.slxc
