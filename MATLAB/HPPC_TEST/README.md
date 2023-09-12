@@ -10,11 +10,11 @@
 
 ## General information
 
-### HPPC Test
-The HPPC script is based on the [Battery Test Manual For Electric Vehicles](https://www.osti.gov/biblio/1186745)
+- ### HPPC Test
+    The HPPC script is based on the [Battery Test Manual For Electric Vehicles](https://www.osti.gov/biblio/1186745)
 
-### Parameter Identification
-The Pramater Identification script is based on the paper [Comparative Research on RC Equivalent circuit](../../DOCS/PAPERS/Battery/Zhang_Comparative_Research_on_RC_Equivalent_circuit.pdf) by Zhang et al.
+- ### Parameter Identification
+    The Pramater Identification script is based on the paper [Comparative Research on RC Equivalent circuit](../../DOCS/PAPERS/Battery/Zhang_Comparative_Research_on_RC_Equivalent_circuit.pdf) by Zhang et al.
 
 ## Setup
 
