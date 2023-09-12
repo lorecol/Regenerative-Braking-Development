@@ -137,13 +137,13 @@ disp("STEP 3 - HPPC TEST");
 % Data
 capacity = 3;                           % [Ahr] Nominal Capacity 
 SOC = 100;                              % [%] Initial SOC
-curr_discharge_pulse = -(2/3)*capacity; % [A] 1C current
+curr_discharge_pulse = -(2/3)*capacity; % [A] 2A current
 t_discharge_pulse = 30;                 % [s]
 t_charge_pulse = 10;                    % [s]
 t_rest_pulse = 40;                      % [s]
-curr_charge_pulse = (2/3)*capacity;     % [A] 0.75C current
+curr_charge_pulse = (2/3)*capacity;     % [A] 2A current
 dischargeC3= -capacity/3;               % [A] C/3 current
-Vlimreal = 4.2;                         % [V] Voltage limit during discharge
+Vlimreal = 5;                           % [V] Voltage limit during discharge
 Vlimlow = 2.8;                          % [V] Lower voltage limit during discharge
 Ts = 0.1;                               % [s] Sampling time
 disCapStep = 0.1;                       % [%] 10% SOC decrease in each discharge

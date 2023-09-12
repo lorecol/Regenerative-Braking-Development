@@ -1,1 +1,0 @@
-Simulink.data.dictionary.closeAll('-discard');
