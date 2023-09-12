@@ -180,7 +180,7 @@ for cycle = 1:1/disCapStep
         pause(Ts);                      % Sampling time
     end
     % Update SOC
-    SOC = calcSOC(SOC,capacity,curr_charge_pulse,t_discharge_pulse);
+    SOC = calcSOC(SOC,capacity,curr_discharge_pulse,t_discharge_pulse);
 
     % turn the output off
     power_supply.turnOFF;
