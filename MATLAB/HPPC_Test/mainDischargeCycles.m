@@ -1,6 +1,9 @@
-%% Clear variables
-clear all; close all; clc;
-addpath(genpath(pwd));
+clear all;
+close all;
+clc;
+
+% Add files and folders to Matlab path
+addpath(genpath(pwd))
 
 %% Estabilish connection with the instrument
 
