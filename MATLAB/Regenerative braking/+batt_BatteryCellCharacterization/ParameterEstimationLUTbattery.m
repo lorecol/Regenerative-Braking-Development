@@ -435,7 +435,7 @@ classdef (Sealed) ParameterEstimationLUTbattery
             
             indxDischgPulseStart = find(abs(abs(diff(current_dischg)) - obj.DischargePulseCurr) < obj.ToleranceDischg & ...
                                    diff(current_dischg) < 0); % include the pulse current portion
-            fprintf('the element index is: %f',indxDischgPulseStart)
+%             fprintf('the element index is: %f',indxDischgPulseStart)
 
             nPulses_discharge    = length(indxDischgPulseStart);
             disp(strcat('*** Number of discharge pulses = ',num2str(nPulses_discharge)));
@@ -452,9 +452,9 @@ classdef (Sealed) ParameterEstimationLUTbattery
                 indxDischgRelaxStart = indxDischgPulseStart;
             end
 
-            disp(strcat('indxDischgPulseStart = ', num2str(indxDischgPulseStart))); % added
-            disp(strcat('indxDischgPulseEnd = ', num2str(indxDischgPulseEnd))); % added
-            disp(strcat('indxDischgPulseMid = ', num2str(indxDischgPulseMid))); % added
+%             disp(strcat('indxDischgPulseStart = ', num2str(indxDischgPulseStart))); % added
+%             disp(strcat('indxDischgPulseEnd = ', num2str(indxDischgPulseEnd))); % added
+%             disp(strcat('indxDischgPulseMid = ', num2str(indxDischgPulseMid))); % added
             
             % Charge Pulse
             current_chg = obj.InputTestData.I;  % Assigning current data to 
@@ -499,9 +499,9 @@ classdef (Sealed) ParameterEstimationLUTbattery
                 indxChgRelaxStart = indxChgPulseStart;
             end
 
-            disp(strcat('indxChgPulseStart = ', num2str(indxChgPulseStart))); % added
-            disp(strcat('indxChgPulseEnd = ', num2str(indxChgPulseEnd))); % added
-            disp(strcat('indxChgPulseMid = ', num2str(indxChgPulseMid))); % added
+%             disp(strcat('indxChgPulseStart = ', num2str(indxChgPulseStart))); % added
+%             disp(strcat('indxChgPulseEnd = ', num2str(indxChgPulseEnd))); % added
+%             disp(strcat('indxChgPulseMid = ', num2str(indxChgPulseMid))); % added
             
             % SOC Sweep
             indxSOCPulseStart = find(abs(abs(diff(obj.InputTestData.I)) - abs(obj.ConstantCurrDischarge)) < obj.ToleranceSOC & ...
@@ -877,11 +877,11 @@ classdef (Sealed) ParameterEstimationLUTbattery
             end
 
             figure('Name', 'Voltage plot for parameter fit verification');
-            plot(t',V','r');
+            plot((t/3600)',V','r');
             hold on
-            plot(newTimeSeries',V_calc','b-');
+            plot((newTimeSeries/3600)',V_calc','b-');
             hold off
-            xlabel("Time (s)");
+            xlabel("Time (h)");
             ylabel("Voltage (V)");          
             legend('Test Data', 'Fit Data')
 
