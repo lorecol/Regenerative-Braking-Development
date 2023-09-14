@@ -39,22 +39,17 @@ writeline(visaObj, ':INITiate:IMMediate:ACQuire');
 
 disp('Initialization done.');
 
+fprintf("\n");
+
 %% Data
 
-% Common data
-Vlimreal = 4.2;     % [V] Voltage upper limit when discharging
-Vliminstr = 5;      % [V] Voltage limit during CC - for the instrument
-Ilev = 2;           % [A] Current level
-Ts = 0.1;           % [s] Sampling time
-
-% CCCV charge
-Ilimneg = 0.2;      % [A] Current negative limit during CV
-Ilimpos = 3;        % [A] Current positive limit during CV --> set higher than actual current level
-
-% HPPC test
+Vlimreal = 4.2;                             % [V] Voltage upper limit when discharging
+Vliminstr = 5;                              % [V] Voltage limit during CC - for the instrument
 Vlimlow = 2.8;                              % [V] Voltage lower limit when discharging
-SOC = 100;                                  % Initial SOC
-disCapStep = 0.1;                           % 10% SOC decrement
+Ilev = 2;                                   % [A] Current level
+Ts = 0.1;                                   % [s] Sampling time
+SOC = 100;                                  % Actual SoC measured by Coulomb counting method
+soc = 100;                                  % SoC variable to keep track of discharge cycles
 capacity = 3;                               % [Ah] Nominal Capacity 
 curr_discharge_pulse = -(2/3) * capacity;   % [A] 2/3C current for discharge pulse
 curr_charge_pulse = (2/3) * capacity;       % [A] 2/3C current for charge pulse
@@ -62,91 +57,59 @@ dischargeC3= -(capacity/3);                 % [A] C/3 current for SOC discharge
 t_discharge_pulse = 30;                     % [s] Discharge pulse time
 t_charge_pulse = 10;                        % [s] Charge pulse time
 t_rest_pulse = 40;                          % [s] Rest period between pulses
-Rest = 20 * 60;                             % [min] Rest period between discharge cycles
-Rest100SOC = 10 * 60;                       % [min] Rest period at full capacity
-
-%% CC-CV charge
-
-% Function to perform the CCCV charging operation
-[CurrCC, VoltCC, CurrCV, VoltCV] = CCCVcharge(visaObj, Vliminstr, Vlimreal, Ilev, Ilimneg, Ilimpos, Ts);
-
-% Extract time array
-Time = Ts:Ts:((length(CurrCC) + length(CurrCV)) * Ts);
-
-% Concatenate the measurements 
-if exist('CurrCC', 'var') == 0 && exist('CurrCV', 'var') == 0
-    print("No available data !!");
-elseif exist('CurrCC', 'var') == 1 && exist('CurrCV', 'var') == 1
-    CurrCharge = [CurrCC; CurrCV]; % Current
-    VoltCharge = [VoltCC; VoltCV]; % Voltage
-    % Insert measurement data inside a structure
-    CCCVchargeMeas = struct;
-    CCCVchargeMeas.CurrCharge = CurrCharge;         % Current
-    CCCVchargeMeas.VoltCharge = VoltCharge;         % Voltage
-    CCCVchargeMeas.Time = Time;                     % Time
-end
-
-% Plot current and voltage during charge
-figure;
-subplot(1, 2, 1)
-plot(Time, CurrCharge);
-title('CCCV charge - Current');
-xlabel('time [s]');
-ylabel('Current [A]');
-subplot(1, 2, 2)
-plot(Time, VoltCharge);
-title('CCCV charge - Voltage');
-xlabel('time [s]');
-ylabel('Voltage [V]');
-
-% Create the output subfolder if it doesn't exist
-if ~exist('output/HPPC_Test', 'dir')
-    mkdir('output/HPPC_Test');
-end
-
-% Get the current date as a formatted string (YYYYMMDD format)
-currentDateStr = datestr(now, 'yyyymmdd_HHMM');
-
-% Save the variable to the .mat file with the date-appended filename
-save(fullfile('output/HPPC_Test', [sprintf('Charge_%s', currentDateStr), '.mat'] ), "CCCVchargeMeas");
-
-% Clear some variables
-clear Vliminstr Ilimneg Ilimpos;
-clear CurrCC VoltCC CurrCV VoltCV Time currentDateStr;
+disCapStep = 0.1;                           % 10% SOC decrement
+Rest = 5 * 60;                              % [min] Rest period between discharge cycles
+Rest100SOC = 5 * 60;                        % [min] Rest period at full capacity
+cycle = 0;                                  % Variable to keep track of cycles number
 
 %% HPPC test
 
-% This script follows the HPPC test procedure of 
+% This script takes inspiration from the HPPC test procedure of 
 % <https://www.osti.gov/biblio/1186745>
 
 % Initialise number of samples
-samples = 0;                  
+samples = 1;                  
 
 % Pre-allocate data arrays
-current = zeros(1, 10^6);
-voltage = zeros(1, 10^6);
-t = zeros(1, 10^6);
+current = zeros(1, 10^6);               % Current
+voltage = zeros(1, 10^6);               % Voltage
+State_of_Charge = zeros(1, 10^6);       % SoC
+t = zeros(1, 10^6);                     % Time
+
+% Configure real-time plot of data
+v = animatedline('Color', 'b', 'LineWidth', 2);             % Voltage
+i = animatedline('Color', 'r', 'LineWidth', 2);             % Current
+axis([0 samples -Vliminstr  Vliminstr]);
 
 %%%%%%%%%%%%%%%%%%%%%%%%% Rest period at 100% SoC %%%%%%%%%%%%%%%%%%%%%%%%%
 
-fprintf("   Rest at full charge for %g min\n", (Rest100SOC/60));
+fprintf("   Rest at full charge for %g sec\n", Rest100SOC);
 
-% Start the external timer
-tic
-for i = 1:((Rest100SOC) * (1/Ts))
-    % Exit when the operation duration time is reached
-    if toc >= Rest100SOC
-        break;
-    end
+% Start the external reference timer
+tCycle = tic;
 
-    % Update samples index
-    samples = samples + 1;
-    % Update time array
-    t(samples) = Ts * samples;
+% Loop until the operation duration time is reached
+while toc(tCycle) < Rest100SOC
 
     % Measure current and voltage and update data arrays
     current(samples) = str2double(writeread(visaObj, ':MEASure:SCALar:CURRent:DC?'));       % Current
     voltage(samples) = str2double(writeread(visaObj, ':MEASure:SCALar:VOLTage:DC?'));       % Voltage
+
+    % Update axis of real-time plot
+    axis([0 samples -Vliminstr Vliminstr]);
+
+    % Real-time plot of the voltage
+    addpoints(v, t(samples), voltage(samples));
+    drawnow
+    % Real-time plot of the current
+    addpoints(i, t(samples), current(samples));
+    drawnow
+
+    % Update samples index
+    samples = samples + 1;
+    % Update time array
+    t(samples) = toc(tCycle);
+
     
     % Sampling time
     pause(Ts); 
@@ -157,14 +120,16 @@ end
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%% HPPC Test %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % We assume that the battery starts from 100% SOC, i.e. at full capacity
 
-for cycle = 1:(1/disCapStep)
+while (soc > 0) && (soc <= 100) 
 
+    % Update number of cycle and print it
+    cycle = cycle + 1;
     fprintf("   Discharge cycle number: %g\n", cycle);
 
     %%%%%%%%%%%%%%%%%%%%%%%%%% Discharge pulse %%%%%%%%%%%%%%%%%%%%%%%%%%%%
     
-    % Discharge 2/3C for 30s
-    fprintf("      Impulsive discharge\n");
+    % Discharge 2/3C
+    fprintf("      Impulsive discharge for %g sec\n", t_discharge_pulse);
     
     % Set the power supply to current priority mode
     writeline(visaObj, ':SOURce:FUNCtion CURRENT');
@@ -176,22 +141,30 @@ for cycle = 1:(1/disCapStep)
     % Turn the output on
     writeline(visaObj, ':OUTPut ON');  
 
-    % Start the external timer
-    tic
-    % Exit when the operation duration time is reached
-    for i = 1:((t_discharge_pulse) * (1/Ts))
-        if toc >= t_discharge_pulse
-            break;
-        end
+    % Track the start of the operation
+    InDisImp = toc(tCycle);
 
-        % Update samples index
-        samples = samples + 1;     
-        % Update time array
-        t(samples) = Ts * samples;
+    % Loop until the operation duration time is reached
+    while toc(tCycle) < (InDisImp + t_discharge_pulse)
 
         % Measure current and voltage and update data arrays
         current(samples) = str2double(writeread(visaObj, ':MEASure:SCALar:CURRent:DC?'));       % Current
         voltage(samples) = str2double(writeread(visaObj, ':MEASure:SCALar:VOLTage:DC?'));       % Voltage
+
+        % Update axis of real-time plot
+        axis([0 samples -Vliminstr Vliminstr]);
+
+        % Real-time plot of the voltage
+        addpoints(v, t(samples), voltage(samples));
+        drawnow
+        % Real-time plot of the current
+        addpoints(i, t(samples), current(samples));
+        drawnow
+
+        % Update samples index
+        samples = samples + 1;     
+        % Update time array
+        t(samples) = toc(tCycle);
 
         % Sampling time
         pause(Ts);                      
@@ -199,35 +172,41 @@ for cycle = 1:(1/disCapStep)
     end
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-    % Update SoC
-    SOC = calcSOC(SOC, capacity, curr_discharge_pulse, t_discharge_pulse);
-
-    % Print the SoC value after pulse discharge
-    fprintf("         SOC value: %g\n", SOC);
-
     % Turn the output off
     writeline(visaObj, ':OUTPut OFF');
 
-    %%%%%%%%%%%%%%%%%%%%%%%%%%% Rest for 40s %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    % Update actual SoC and print it
+    SOC = calcSOC(SOC, capacity, curr_discharge_pulse, t_discharge_pulse);
+    fprintf("         SOC value: %g\n", SOC);
 
-    fprintf("      Rest\n");
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%% 40s Rest %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-    % Start the external timer
-    tic
-    for i = 1:((t_rest_pulse) * (1/Ts))
-        % Exit when the operation duration time is reached
-        if toc >= t_rest_pulse
-            break;
-        end
+    fprintf("      Rest for %g sec\n", t_rest_pulse);
 
-        % Update samples index
-        samples = samples + 1;     
-        % Update time array
-        t(samples) = Ts * samples;
+    % Track the start of the operation
+    InRest40 = toc(tCycle);
+
+    % Loop until the operation duration time is reached
+    while toc(tCycle) < (InRest40 + t_rest_pulse)
 
         % Measure current and voltage and update data arrays
         current(samples) = str2double(writeread(visaObj, ':MEASure:SCALar:CURRent:DC?'));       % Current
         voltage(samples) = str2double(writeread(visaObj, ':MEASure:SCALar:VOLTage:DC?'));       % Voltage
+
+        % Update axis of real-time plot
+        axis([0 samples -Vliminstr Vliminstr]);
+
+        % Real-time plot of the voltage
+        addpoints(v, t(samples), voltage(samples));
+        drawnow
+        % Real-time plot of the current
+        addpoints(i, t(samples), current(samples));
+        drawnow
+
+        % Update samples index
+        samples = samples + 1;     
+        % Update time array
+        t(samples) = toc(tCycle);
         
         % Sampling time
         pause(Ts); 
@@ -236,8 +215,8 @@ for cycle = 1:(1/disCapStep)
 
     %%%%%%%%%%%%%%%%%%%%%%%%%%%% Charge pulse %%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-    % Charge 2/3C for 30s
-    fprintf("      Impulsive charge\n");
+    % Charge 2/3C
+    fprintf("      Impulsive charge for %g sec\n", t_charge_pulse);
 
     % Set the power supply to current priority mode
     writeline(visaObj, ':SOURce:FUNCtion CURRENT');
@@ -249,22 +228,30 @@ for cycle = 1:(1/disCapStep)
     % Turn the output on
     writeline(visaObj, ':OUTPut ON'); 
 
-    % Start the external timer
-    tic
-    for i = 1:((t_charge_pulse) * (1/Ts))
-        % Exit when the operation duration time is reached
-        if toc >= t_charge_pulse
-            break;
-        end
+    % Track the start of the operation
+    InChImp = toc(tCycle);
 
-        % Update samples index
-        samples = samples + 1;
-        % Update time array
-        t(samples) = Ts * samples;
+    % Loop until the operation duration time is reached
+    while toc(tCycle) < (InChImp + t_charge_pulse)
 
         % Measure current and voltage and update data arrays
         current(samples) = str2double(writeread(visaObj, ':MEASure:SCALar:CURRent:DC?'));       % Current
         voltage(samples) = str2double(writeread(visaObj, ':MEASure:SCALar:VOLTage:DC?'));       % Voltage
+
+        % Update axis of real-time plot
+        axis([0 samples -Vliminstr Vliminstr]);
+
+        % Real-time plot of the voltage
+        addpoints(v, t(samples), voltage(samples));
+        drawnow
+        % Real-time plot of the current
+        addpoints(i, t(samples), current(samples));
+        drawnow
+
+        % Update samples index
+        samples = samples + 1;     
+        % Update time array
+        t(samples) = toc(tCycle);
         
         % Sampling time
         pause(Ts);     
@@ -272,22 +259,54 @@ for cycle = 1:(1/disCapStep)
     end
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-    % Update SoC
-    SOC = calcSOC(SOC, capacity, curr_charge_pulse, t_charge_pulse);
-
-    % Print the SoC value after pulse charge
-    fprintf("         SOC value: %g\n", SOC);
-    
-    % Initialize SoC
-    SOC0 = SOC;
-
     % Turn the output OFF
     writeline(visaObj, ':OUTPut OFF');
 
+    % Update actual SoC and print it
+    SOC = calcSOC(SOC, capacity, curr_charge_pulse, t_charge_pulse);
+    fprintf("         SOC value: %g\n", SOC);
+
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%% 40s Rest %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+    fprintf("      Rest for %g sec\n", t_rest_pulse);
+
+    % Track the start of the operation
+    InRest40bis = toc(tCycle);
+
+    % Loop until the operation duration time is reached
+    while toc(tCycle) < (InRest40bis + t_rest_pulse)
+
+        % Measure current and voltage and update data arrays
+        current(samples) = str2double(writeread(visaObj, ':MEASure:SCALar:CURRent:DC?'));       % Current
+        voltage(samples) = str2double(writeread(visaObj, ':MEASure:SCALar:VOLTage:DC?'));       % Voltage
+
+        % Update axis of real-time plot
+        axis([0 samples -Vliminstr Vliminstr]);
+
+        % Real-time plot of the voltage
+        addpoints(v, t(samples), voltage(samples));
+        drawnow
+        % Real-time plot of the current
+        addpoints(i, t(samples), current(samples));
+        drawnow
+
+        % Update samples index
+        samples = samples + 1;     
+        % Update time array
+        t(samples) = toc(tCycle);
+        
+        % Sampling time
+        pause(Ts); 
+    end
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    
+    % Define a new SoC variable for iterating the discharge cycles
+    SOC0 = SOC;
+
     %%%%%%%%%%%%%%%%%%%%%%%%%% Discharge cycle %%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-    % Discharge C/3 for to the next SoC
-    fprintf("      Start of Discharge\n");
+    % Discharge C/3 to reach the next SoC value
+    fprintf("      Discharge %g %% of the State of Charge\n", (1/disCapStep));
 
     % Set the power supply to current priority mode
     writeline(visaObj, ':SOURce:FUNCtion CURRENT');
@@ -299,80 +318,160 @@ for cycle = 1:(1/disCapStep)
     % Turn the output on
     writeline(visaObj, ':OUTPut ON');  
 
-    % Start the external trigger
-    tStart = tic;
-    while SOC >= SOC0 - (1/disCapStep) * cycle
-        tic;
-        samples = samples + 1;           % Update samples
-        current(samples) = str2double(writeread(visaObj, ':MEASure:SCALar:CURRent:DC?'));
-        voltage(samples) = str2double(writeread(visaObj, ':MEASure:SCALar:VOLTage:DC?'));
-
-        % Exit if the voltage is below the negative limit
-        if voltage(samples) < Vlimlow
-            disp("Voltage below the limit! Power-off");
-
-            % Disable the output
-            writeline(visaObj, ':OUTPut OFF');
-            break;     
-        end
-        
-        % Update time array
-        t(samples) = Ts * samples;
-        
-        % Sampling time
-        pause(Ts);                      
-        
-        % Update SoC
-        SOC = calcSOC(SOC, capacity, dischargeC3, toc);
-
-        % Print:
-        %  - time to complete one iteration
-        %  - external timer time
-        %  - SoC updates 
-        fprintf("         Titer: %g, Tsum: %g ; SOC: %g\n", toc, toc(tStart), SOC);
-
-    end
-    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-    fprintf("      End of Discharge\n");
-
-    % Disable the output
-    writeline(visaObj, ':OUTPut OFF');
-
-    %%%%%%%%%%%%%%%%%%%%%%%%%% Rest for 20min %%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-    fprintf("      Rest before next cycle\n");
-
-    % Start the external timer
-    tic
-    for i = (1:(Rest) * (1/Ts))
-        % Exit when the operation duration time is reached
-        if toc >= Rest
-            break;
-        end
-
-        % Update samples index
-        samples= samples + 1;
+    % Loop until the battery is discharged by the desired percentage
+    while SOC >= (SOC0 - 1/disCapStep)
 
         % Measure current and voltage and update data arrays
         current(samples) = str2double(writeread(visaObj, ':MEASure:SCALar:CURRent:DC?'));       % Current
         voltage(samples) = str2double(writeread(visaObj, ':MEASure:SCALar:VOLTage:DC?'));       % Voltage
-        
+
+        % Update axis of real-time plot
+        axis([0 samples -Vliminstr Vliminstr]);
+
+        % Real-time plot of the voltage
+        addpoints(v, t(samples), voltage(samples));
+        drawnow
+        % Real-time plot of the current
+        addpoints(i, t(samples), current(samples));
+        drawnow
+
+        % Update samples index
+        samples = samples + 1;     
         % Update time array
-        t(samples) = Ts * samples;
+        t(samples) = toc(tCycle);
+
+        % Exit if the undervoltage condition is reached
+%         if voltage(samples) < Vlimlow
+%             disp("The voltage is below the limit! Power-off.");
+% 
+%             % Disable the output
+%             writeline(visaObj, ':OUTPut OFF');
+%             break;     
+%         end
+        
+        % Sampling time
+        pause(Ts);                      
+        
+        % Update actual SoC
+        SOC = calcSOC(SOC, capacity, dischargeC3, (t(samples) - t(samples - 1)));
+
+        % Print:
+        %  - number of cycle
+        %  - time values
+        %  - SoC updates
+        %  - SoC goal
+        fprintf("         Cycle: %g ; time: %g ; SOC: %g ; Goal: %g\n", cycle, toc(tCycle), SOC, (SOC0 - (1/disCapStep)));
+
+    end
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+    % Update SoC array
+    State_of_Charge(cycle) = SOC;
+
+    % Exit the main loop if actual SoC is less than the percentage step during
+    % discharge
+    if (SOC - 0.3704) < (1/disCapStep)
+
+        % Disable the output
+        writeline(visaObj, ':OUTPut OFF'); 
+    
+        %%%%%%%%%%%%%%%%%%%%%%%%%%%% Rest  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    
+        fprintf("      Rest %g sec before ending the test\n", Rest);
+
+        % Track the start of the operation
+        InExit = toc(tCycle);
+
+        % Loop until the operation duration time is reached
+        while toc(tCycle) < (InExit + Rest)
+
+            % Measure current and voltage and update data arrays
+            current(samples) = str2double(writeread(visaObj, ':MEASure:SCALar:CURRent:DC?'));       % Current
+            voltage(samples) = str2double(writeread(visaObj, ':MEASure:SCALar:VOLTage:DC?'));       % Voltage
+
+            % Update axis of real-time plot
+            axis([0 samples -Vliminstr Vliminstr]);
+    
+            % Real-time plot of the voltage
+            addpoints(v, t(samples), voltage(samples));
+            drawnow
+            % Real-time plot of the current
+            addpoints(i, t(samples), current(samples));
+            drawnow
+    
+            % Update samples index
+            samples = samples + 1;     
+            % Update time array
+            t(samples) = toc(tCycle);
+            
+            % Sampling time
+            pause(Ts); 
+    
+        end
+
+        fprintf("      Test completed !!\n");
+        break;
+
+    end
+
+    % Disable the output
+    writeline(visaObj, ':OUTPut OFF');
+
+    fprintf("      End of Discharge cycle\n"); 
+
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Rest  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+    fprintf("      Rest %g sec before next cycle\n", Rest);
+
+    % Track the start of the operation
+    InRest = toc(tCycle);
+
+    % Loop until the operation duration time is reached
+    while toc(tCycle) < (InRest + Rest)
+
+        % Measure current and voltage and update data arrays
+        current(samples) = str2double(writeread(visaObj, ':MEASure:SCALar:CURRent:DC?'));       % Current
+        voltage(samples) = str2double(writeread(visaObj, ':MEASure:SCALar:VOLTage:DC?'));       % Voltage
+
+        % Update axis of real-time plot
+        axis([0 samples -Vliminstr Vliminstr]);
+
+        % Real-time plot of the voltage
+        addpoints(v, t(samples), voltage(samples));
+        drawnow
+        % Real-time plot of the current
+        addpoints(i, t(samples), current(samples));
+        drawnow
+
+        % Update samples index
+        samples = samples + 1;     
+        % Update time array
+        t(samples) = toc(tCycle);
         
         % Sampling time
         pause(Ts); 
 
     end
 
+    % Update the value of the SoC for initiating a new HPPC cycle
+    soc = soc - (1/disCapStep);
+
 end
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+% Trim the measurements
+current = current(current ~= 0);        % Current
+voltage = voltage(voltage ~= 0);        % Voltage
+t = t(t ~= 0);                          % Time
+% Update SoC array
+SOC = [100, State_of_Charge];
+SOC = SOC(SOC ~= 0);
 
 % Insert measurement data inside a structure
 HPPCMeas = struct;
 HPPCMeas.Current = current;         % Current
 HPPCMeas.Voltage = voltage;         % Voltage
+HPPCMeas.SOC = SOC;                 % State of Charge
 HPPCMeas.Time = t;                  % Time
 
 % Plot voltage and current during the test
