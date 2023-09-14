@@ -18,6 +18,10 @@ data = HPPCMeas;
 
 clear HPPCMeas;
 
+% Se verranno raccolti nuovi dati eseguendo mainHPPC_Lorenzo dentro la
+% cartella MATLAB/HPPC_Test non sarà più necessario tagliare il vettore
+% dello SOC, dal momento che verrà estrapolato già con la giusta
+% dimensione
 data.SOC     = data.SOC(data.SOC ~= 0);
 % data.SOC     = data.SOC';
 data.Current = data.Current';
