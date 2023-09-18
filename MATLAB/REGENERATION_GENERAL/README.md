@@ -15,7 +15,7 @@ This script is used achieve the coarse regeneration parameters for the battery m
 
 ## Authors
 [Lorenzo Colturato](https://github.com/lorecol)\
-[Paolo Furia](https://github.com/paolofuria)
+[Paolo Furia](https://github.com/paolofuria99)
 
 ## License
 This project is licensed under the MIT License - see the [LICENSE](../../LICENSE) file for details

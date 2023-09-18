@@ -15,7 +15,7 @@
 
 ## Authors
 [Lorenzo Colturato](https://github.com/lorecol)\
-[Paolo Furia](https://github.com/paolofuria)
+[Paolo Furia](https://github.com/paolofuria99)
 
 
 ## License
