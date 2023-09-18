@@ -1,20 +1,19 @@
 %% Clear variables
 clear all; clf; clc; close all;
+% Add files and folders to Matlab path
+addpath(genpath(pwd))
 
 %% Load voltage and current data from HPPC test
-%load('HPPC_data.mat'); % Data should be in a matrix with two columns: time (s), current (A), and voltage (V)
-%time = HPPC_data(:,1); % Time vector
-%current = HPPC_data(:,2); % Current vector
-%voltage = HPPC_data(:,3); % Voltage vector
-load('output/voltageDis_20230731_1625.mat')
-load('output/currentDis_20230731_1625.mat')
-voltage = VoltDis;
-current = CurrDis;
+% Change if the structure of saved data is different
+load('output/Test_20230914_1608.mat')
+voltage = HPPCMeas.Voltage;
+current = HPPCMeas.Current;
 Ts= 0.1; % Sampling time
 time = 0+Ts:Ts:((10 + 12)*60*10); % Time axis if not given
 
 %% Define some constants
-capacity = 4000; % Battery capacity in mAh
+% Change if needed
+capacity = 3000; % Battery capacity in mAh from Capacity Test
 pulse_current = 2; % Pulse current in A
 pulse_duration = 12*60; % Pulse duration in s
 rest_duration = 10*60; % Rest duration between pulses in s

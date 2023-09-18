@@ -1,4 +1,5 @@
-# HPPC TEST 
+# PARAMETER IDENTIFICATION
+
 
 ## Table of Contents
 - [General information](#general-information)
@@ -6,7 +7,7 @@
 - [How to use](#how-to-use)
 
 ## General information
-The HPPC script is based on the [Battery Test Manual For Electric Vehicles](https://www.osti.gov/biblio/1186745)
+
 
 ## Setup
 

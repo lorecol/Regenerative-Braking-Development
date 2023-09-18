@@ -1,12 +1,13 @@
-# HPPC TEST 
-
+# Power Supply Library
 ## Table of Contents
 - [General information](#general-information)
 - [Setup](#setup)
 - [How to use](#how-to-use)
 
 ## General information
-The HPPC script is based on the [Battery Test Manual For Electric Vehicles](https://www.osti.gov/biblio/1186745)
+This library contains the functions to control the power supply. It could be used to control the power supply in the capacity test and in the HPPC test.
+
+
 
 ## Setup
 
