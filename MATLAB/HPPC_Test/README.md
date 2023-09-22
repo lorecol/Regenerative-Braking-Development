@@ -28,7 +28,7 @@ TODO: Finish the description of the test with specifications and results and C-R
 
 
 ## Setup
-- Install the instruments [IO libraries](https://www.keysight.com/it/en/lib/software-detail/computer-software/io-libraries-suite-downloads-2175637.html)
+- Install the instruments [IO Libraries Suite version 2022 Update 2](https://www.keysight.com/it/en/lib/software-detail/computer-software/io-libraries-suite-downloads-2175637.html)
 - Use the program "Keysight Connection Expert" to connect to the power supply through LAN
 
 
