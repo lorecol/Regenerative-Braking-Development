@@ -1,7 +1,6 @@
 % This script is used to record voltage and temperature data from a "block"
-% (= a series of three "modules" which are 4 cells in parallel) 
-% throught a microcontroller connected to it which sample with
-% sampling period of 0.1s.
+% (= a series of 3 "modules" which are 4 cells in parallel) 
+% throught a microcontroller connected to it sampling period of 0.1s.
 
 %% Clear data
 clear all; 
@@ -21,8 +20,15 @@ serialportname = serialportlist("available");
 % Create a serial port object
 s = serialport(serialportname, baudrate);
 
+% Save log in an external file
+% Create the output subfolder if it doesn't exist
+if ~exist('output', 'dir')
+    mkdir('output');
+end
+% Get the current date as a formatted string (YYYYMMDD format)
+currentDateStr = datestr(now, 'yyyymmdd_HHMM');
 % Define the name of the file where to log data
-FileName = "SerialDataLog_prova.txt";
+FileName = ['output/SerialDataLog_', currentDateStr, '.txt'];
 
 % Open the file where to log data; create the file if not present
 newFileID = fopen(FileName, 'a+');
@@ -37,6 +43,9 @@ ButtonHandle = uicontrol('Style', 'PushButton', ...
 
 % Send a char to say at the micro to start sending values 
 writeline(s, "hello");
+
+% Start execution time
+timerStart= tic;
 
 % Start cycle
 while true
