@@ -35,7 +35,7 @@ else
 end
 
 % Load the data
-load(file);
+load(fullfile(path, file));
 % Extract the data
 data = HPPCMeas;
 
@@ -48,14 +48,15 @@ clear HPPCMeas path file;
 % time step, accordingly to Ts (sample time) and toc, which are parameters
 % defined in the mainHPPC file.
 
-current = data.Current;         % Current 
-voltage = data.Voltage;         % Voltage 
-time = data.Time;               % Time 
+current = data.Current';         % Current 
+voltage = data.Voltage';         % Voltage 
+time = data.Time';               % Time 
 
 % SOC
-SOC = data.SoC;                 
-SOC = flip(SOC);
+SOC = data.SOC;
 SOC = SOC';
+SOC = flip(SOC);
+SOC = SOC/100;
 
 %% Plot the collected data
 
@@ -72,23 +73,23 @@ plot(time/3600, voltage)
 xlabel('Time (h)')
 ylabel('Voltage (V)')
 
-%% Cell characterization 
+%% Define parameters for cell characterization 
 
 % Data
-parallel = 4;                       % Battery configuration
-cellCapacity = 4 * parallel;        % Cell capacity [Ah]             
-cellInitialSOC = SOC(1)/100;        % Initial SOC
+parallel = 1;                       % Battery configuration
+cellCapacity = 3 * parallel;        % Cell capacity [Ah]             
+cellInitialSOC = SOC(end);      % Initial SOC
 
 % Cell properties array
 cell_prop = [cellCapacity; cellInitialSOC];    
 
-maxDischargeCurr = 2;               % [A] Maximum discharge current 
-maxChargeCurr = 2;                  % [A] Maximum charge current
+maxDischargeCurr = 2 * parallel;    % [A] Maximum discharge current 
+maxChargeCurr = 2 * parallel;       % [A] Maximum charge current
 constCurrSweepSOC = 1;              % [A] Current sweep
 
 toleranceValChg = 0.1;              % [A] Current tolerance for charge impulse
-toleranceValDischg = 0.5;           % [A] Current tolerance for discharge impulse
-toleranceValSOC = 0.1;              % [A] Current tolerance for SoC sweep
+toleranceValDischg = 0.1;           % [A] Current tolerance for discharge impulse
+toleranceValSOC = 0.5;              % [A] Current tolerance for SoC sweep
 
 hppc_protocol = [maxDischargeCurr   ;...
                  maxChargeCurr      ;...
@@ -100,10 +101,10 @@ hppc_protocol = [maxDischargeCurr   ;...
 numRCpairs = 1;                     % Number of RC pairs in the model
 initialGuess_RC = [1 100];          % Initial values of RC pairs for optimization purposes
 
-%% Computation
+%% Cell characterization
 
 result = batt_BatteryCellCharacterization.ParameterEstimationLUTbattery(...
-                                     [time, current, voltage],          ...
+                                     [time, current, voltage],     ...
                                      cell_prop,                         ...
                                      hppc_protocol,                     ...
                                      numRCpairs,                        ...
@@ -117,5 +118,4 @@ fitDataForSOCpts = 0:fitDataEverySOCval:1;
 verifyDataFit(result,fitDataEverySOCval,1);
 
 
-cellParameters = exportResultsForLib(result,...
-                 flip(SOC/100));
+cellParameters = exportResultsForLib(result, SOC');
