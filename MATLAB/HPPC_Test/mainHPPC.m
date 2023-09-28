@@ -8,11 +8,9 @@ addpath(genpath(pwd))
 %% Estabilish connection with the instrument
 
 % Load VISA library
-Instrlist = visadevlist;
+Instrlist = visadevlist("Timeout", 10);
 % Create VISA object
 visaObj = visadev(Instrlist.ResourceName);
-% Set the timeout value
-visaObj.Timeout = 10;       % [s]
 
 % Check if the connection is successful
 if strcmp(visaObj.Status, 'open')
@@ -21,106 +19,112 @@ else
     error('Failed to connect to the instrument.');
 end
 
-%% Initialization
-
-% Reset the instrument to pre-defined values 
-writeline(visaObj, '*RST');
-% Clear status command
-writeline(visaObj, '*CLS');
-
-% Enable voltage measurements
-writeline(visaObj, ':SENSe:FUNCtion:VOLTage ON');
-
-% Enable current measurements
-writeline(visaObj, ':SENSe:FUNCtion:CURRent ON');
-
-% Initialize acquisition
-writeline(visaObj, ':INITiate:IMMediate:ACQuire');
-
-disp('Initialization done.');
-
-fprintf("\n");
-
 %% Data
 
-Vlimreal = 4.2;                             % [V] Voltage upper limit when discharging
-Vliminstr = 5;                              % [V] Voltage limit during CC - for the instrument
-Vlimlow = 2.8;                              % [V] Voltage lower limit when discharging
-Ilev = 2;                                   % [A] Current level
-Ts = 0.1;                                   % [s] Sampling time
-SOC = 100;                                  % Actual SoC measured by Coulomb counting method
-soc = 100;                                  % SoC variable to keep track of discharge cycles
-capacity = 3;                               % [Ah] Nominal Capacity 
-curr_discharge_pulse = -(2/3) * capacity;   % [A] 2/3C current for discharge pulse
-curr_charge_pulse = (2/3) * capacity;       % [A] 2/3C current for charge pulse
-dischargeC3= -(capacity/3);                 % [A] C/3 current for SOC discharge
-t_discharge_pulse = 30;                     % [s] Discharge pulse time
-t_charge_pulse = 10;                        % [s] Charge pulse time
-t_rest_pulse = 40;                          % [s] Rest period between pulses
-disCapStep = 0.1;                           % 10% SOC decrement
-Rest = 5 * 60;                              % [min] Rest period between discharge cycles
-Rest100SOC = 5 * 60;                        % [min] Rest period at full capacity
-cycle = 0;                                  % Variable to keep track of cycles number
+% Battery configuration                 
+parallel = 4;                                                   % Number of parallels
+series = 3;                                                     % Number of series
+
+Vlimreal = 4.2 * series;                                        % [V] Voltage upper limit when discharging
+Vliminstr = 5 * series;                                         % [V] Voltage limit during CC - for the instrument
+Vlimlow = 2.5 * series;                                         % [V] Voltage lower limit when discharging
+Ilev = 2 * parallel;                                            % [A] Current level
+Ts = 0.1;                                                       % [s] Sampling time
+SOC = 100;                                                      % Actual SoC measured by Coulomb counting method
+capacity = 4 * parallel;                                        % [Ah] Nominal Capacity 
+curr_discharge_pulse = -(1/2) * capacity;                       % [A] 2/3C current for discharge pulse
+curr_charge_pulse = (1/2) * capacity;                           % [A] 2/3C current for charge pulse
+dischargeC3 = -((5/16) * capacity);                             % [A] C/3 current for SOC discharge
+t_discharge_pulse = 30;                                         % [s] Discharge pulse time
+t_charge_pulse = 30;                                            % [s] Charge pulse time -- default: 10 sec
+t_rest_pulse = 40;                                              % [s] Rest period between pulses
+disCapStep = 0.1;                                               % 10% SOC decrement
+tDisCycle = ((capacity * 3600 * disCapStep)/abs(dischargeC3));  % [min] Discharge cycle time
+Rest = 10 * 60;                                                 % [min] Rest period between discharge cycles
+Rest100SOC = 10 * 60;                                           % [min] Rest period at full capacity
+cycle = 0;                                                      % Variable to keep track of cycles number
+
+%% Initialization
+
+% Select data format
+writeline(visaObj, ":FORM:DATA ASCii");
+
+% Enable log of voltage data
+writeline(visaObj, ':SENSe:ELOG:FUNCtion:VOLTage ON');
+writeline(visaObj, ':SENSe:ELOG:FUNCtion:VOLTage:MINMax OFF');
+
+% Disable log of current data
+writeline(visaObj, ':SENSe:ELOG:FUNCtion:CURRent ON');
+writeline(visaObj, ':SENSe:ELOG:FUNCtion:CURRent:MINMax OFF');
+
+% Define integration time
+writeline(visaObj, sprintf(':SENS:ELOG:PER %g', Ts));
+
+% Select trigger source for data logging
+writeline(visaObj, 'TRIGger:TRANsient:SOURce BUS');
+
+% Initialize the elog system
+writeline(visaObj, ':INITiate:IMMediate:ELOG');
+
+
+disp('Initialization done.');
 
 %% HPPC test
 
 % This script takes inspiration from the HPPC test procedure of 
 % <https://www.osti.gov/biblio/1186745>
 
-% Initialise number of samples
-samples = 1;                  
+% Define the name of the file where to log data
+FileName = "HPPCTestDataLog.txt";
+% Open the file where to log data in writing mode; create the file if not 
+% present
+newFileID = fopen(FileName, 'w+');
+% Open the visualisation of the file where to log data
+open(FileName);
 
-% Pre-allocate data arrays
-current = zeros(1, 10^6);               % Current
-voltage = zeros(1, 10^6);               % Voltage
-State_of_Charge = zeros(1, 10^6);       % SoC
-t = zeros(1, 10^6);                     % Time
-
-% Configure real-time plot of data
-v = animatedline('Color', 'b', 'LineWidth', 2);             % Voltage
-i = animatedline('Color', 'r', 'LineWidth', 2);             % Current
-axis([0 samples -Vliminstr  Vliminstr]);
+% Wait some time before discharging
+pause(1);
 
 %%%%%%%%%%%%%%%%%%%%%%%%% Rest period at 100% SoC %%%%%%%%%%%%%%%%%%%%%%%%%
 
 fprintf("   Rest at full charge for %g sec\n", Rest100SOC);
 
+% Trigger elog system
+writeline(visaObj, ':TRIGger:ELOG:IMMediate');
+
 % Start the external reference timer
 tCycle = tic;
 
 % Loop until the operation duration time is reached
-while toc(tCycle) < Rest100SOC
+while true
 
-    % Measure current and voltage and update data arrays
-    current(samples) = str2double(writeread(visaObj, ':MEASure:SCALar:CURRent:DC?'));       % Current
-    voltage(samples) = str2double(writeread(visaObj, ':MEASure:SCALar:VOLTage:DC?'));       % Voltage
+    % Wait to collect some samples
+    pause(10);
 
-    % Update axis of real-time plot
-    axis([0 samples -Vliminstr Vliminstr]);
+    % Log voltage and current data
+    data = str2double(regexp(writeread(visaObj, sprintf('FETCh:ELOG? %g', 100)), ',', 'split'));
 
-    % Real-time plot of the voltage
-    addpoints(v, t(samples), voltage(samples));
-    drawnow
-    % Real-time plot of the current
-    addpoints(i, t(samples), current(samples));
-    drawnow
+    % Print the data to the .txt file
+    fprintf(newFileID, "%g\n", data);
 
-    % Update samples index
-    samples = samples + 1;
-    % Update time array
-    t(samples) = toc(tCycle);
-
-    
-    % Sampling time
-    pause(Ts); 
+    % Exit condition
+    if toc(tCycle) >= Rest100SOC
+        break;
+    end
 
 end
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+% Abort the elog system
+writeline(visaObj, ':ABORt:ELOG');
+
+% Initialize the elog system
+writeline(visaObj, ':INITiate:IMMediate:ELOG');
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%% HPPC Test %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % We assume that the battery starts from 100% SOC, i.e. at full capacity
 
-while (soc > 0) && (soc <= 100) 
+while true 
 
     % Update number of cycle and print it
     cycle = cycle + 1;
@@ -128,7 +132,7 @@ while (soc > 0) && (soc <= 100)
 
     %%%%%%%%%%%%%%%%%%%%%%%%%% Discharge pulse %%%%%%%%%%%%%%%%%%%%%%%%%%%%
     
-    % Discharge 2/3C
+    % Discharge 1/3C
     fprintf("      Impulsive discharge for %g sec\n", t_discharge_pulse);
     
     % Set the power supply to current priority mode
@@ -141,81 +145,80 @@ while (soc > 0) && (soc <= 100)
     % Turn the output on
     writeline(visaObj, ':OUTPut ON');  
 
+    % Trigger elog system
+    writeline(visaObj, ':TRIGger:ELOG:IMMediate');
+
     % Track the start of the operation
     InDisImp = toc(tCycle);
 
     % Loop until the operation duration time is reached
-    while toc(tCycle) < (InDisImp + t_discharge_pulse)
+    while true 
 
-        % Measure current and voltage and update data arrays
-        current(samples) = str2double(writeread(visaObj, ':MEASure:SCALar:CURRent:DC?'));       % Current
-        voltage(samples) = str2double(writeread(visaObj, ':MEASure:SCALar:VOLTage:DC?'));       % Voltage
+        % Wait to collect some samples
+        pause(10);
+    
+        % Log voltage and current data
+        data = str2double(regexp(writeread(visaObj, sprintf('FETCh:ELOG? %g', 100)), ',', 'split'));
+    
+        % Print the data to the .txt file
+        fprintf(newFileID, "%g\n", data);
 
-        % Update axis of real-time plot
-        axis([0 samples -Vliminstr Vliminstr]);
-
-        % Real-time plot of the voltage
-        addpoints(v, t(samples), voltage(samples));
-        drawnow
-        % Real-time plot of the current
-        addpoints(i, t(samples), current(samples));
-        drawnow
-
-        % Update samples index
-        samples = samples + 1;     
-        % Update time array
-        t(samples) = toc(tCycle);
-
-        % Sampling time
-        pause(Ts);                      
-
+        % Exit condition
+        if toc(tCycle) > (InDisImp + t_discharge_pulse)
+            break;
+        end
+    
     end
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
     % Turn the output off
     writeline(visaObj, ':OUTPut OFF');
 
-    % Update actual SoC and print it
-    SOC = calcSOC(SOC, capacity, curr_discharge_pulse, t_discharge_pulse);
-    fprintf("         SOC value: %g\n", SOC);
+    % Abort the elog system
+    writeline(visaObj, ':ABORt:ELOG');
+
+    % Initialize the elog system
+    writeline(visaObj, ':INITiate:IMMediate:ELOG');
 
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%% 40s Rest %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
     fprintf("      Rest for %g sec\n", t_rest_pulse);
 
+    % Trigger elog system
+    writeline(visaObj, ':TRIGger:ELOG:IMMediate');
+
     % Track the start of the operation
     InRest40 = toc(tCycle);
 
     % Loop until the operation duration time is reached
-    while toc(tCycle) < (InRest40 + t_rest_pulse)
+    while true
 
-        % Measure current and voltage and update data arrays
-        current(samples) = str2double(writeread(visaObj, ':MEASure:SCALar:CURRent:DC?'));       % Current
-        voltage(samples) = str2double(writeread(visaObj, ':MEASure:SCALar:VOLTage:DC?'));       % Voltage
+        % Wait to collect some samples
+        pause(10);
+    
+        % Log voltage and current data
+        data = str2double(regexp(writeread(visaObj, sprintf('FETCh:ELOG? %g', 100)), ',', 'split'));
+    
+        % Print the data to the .txt file
+        fprintf(newFileID, "%g\n", data);
 
-        % Update axis of real-time plot
-        axis([0 samples -Vliminstr Vliminstr]);
+        % Exit condition
+        if toc(tCycle) >= (InRest40 + t_rest_pulse)
+            break;
+        end
 
-        % Real-time plot of the voltage
-        addpoints(v, t(samples), voltage(samples));
-        drawnow
-        % Real-time plot of the current
-        addpoints(i, t(samples), current(samples));
-        drawnow
-
-        % Update samples index
-        samples = samples + 1;     
-        % Update time array
-        t(samples) = toc(tCycle);
-        
-        % Sampling time
-        pause(Ts); 
     end
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+    % Abort the elog system
+    writeline(visaObj, ':ABORt:ELOG');
+
+    % Initialize the elog system
+    writeline(visaObj, ':INITiate:IMMediate:ELOG');
+
     %%%%%%%%%%%%%%%%%%%%%%%%%%%% Charge pulse %%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-    % Charge 2/3C
+    % Charge 1/3C
     fprintf("      Impulsive charge for %g sec\n", t_charge_pulse);
 
     % Set the power supply to current priority mode
@@ -228,33 +231,28 @@ while (soc > 0) && (soc <= 100)
     % Turn the output on
     writeline(visaObj, ':OUTPut ON'); 
 
+    % Trigger elog system
+    writeline(visaObj, ':TRIGger:ELOG:IMMediate');
+
     % Track the start of the operation
     InChImp = toc(tCycle);
 
     % Loop until the operation duration time is reached
-    while toc(tCycle) < (InChImp + t_charge_pulse)
+    while true
 
-        % Measure current and voltage and update data arrays
-        current(samples) = str2double(writeread(visaObj, ':MEASure:SCALar:CURRent:DC?'));       % Current
-        voltage(samples) = str2double(writeread(visaObj, ':MEASure:SCALar:VOLTage:DC?'));       % Voltage
+        % Wait to collect some samples
+        pause(10);
+    
+        % Log voltage and current data
+        data = str2double(regexp(writeread(visaObj, sprintf('FETCh:ELOG? %g', 100)), ',', 'split'));
+    
+        % Print the data to the .txt file
+        fprintf(newFileID, "%g\n", data);
 
-        % Update axis of real-time plot
-        axis([0 samples -Vliminstr Vliminstr]);
-
-        % Real-time plot of the voltage
-        addpoints(v, t(samples), voltage(samples));
-        drawnow
-        % Real-time plot of the current
-        addpoints(i, t(samples), current(samples));
-        drawnow
-
-        % Update samples index
-        samples = samples + 1;     
-        % Update time array
-        t(samples) = toc(tCycle);
-        
-        % Sampling time
-        pause(Ts);     
+        % Exit condition
+        if toc(tCycle) >= (InChImp + t_charge_pulse)
+            break;
+        end
 
     end
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -262,50 +260,51 @@ while (soc > 0) && (soc <= 100)
     % Turn the output OFF
     writeline(visaObj, ':OUTPut OFF');
 
-    % Update actual SoC and print it
-    SOC = calcSOC(SOC, capacity, curr_charge_pulse, t_charge_pulse);
-    fprintf("         SOC value: %g\n", SOC);
+    % Abort the elog system
+    writeline(visaObj, ':ABORt:ELOG');
+
+    % Initialize the elog system
+    writeline(visaObj, ':INITiate:IMMediate:ELOG');
 
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%% 40s Rest %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
     fprintf("      Rest for %g sec\n", t_rest_pulse);
 
+    % Trigger elog system
+    writeline(visaObj, ':TRIGger:ELOG:IMMediate');
+
     % Track the start of the operation
     InRest40bis = toc(tCycle);
 
     % Loop until the operation duration time is reached
-    while toc(tCycle) < (InRest40bis + t_rest_pulse)
+    while true
 
-        % Measure current and voltage and update data arrays
-        current(samples) = str2double(writeread(visaObj, ':MEASure:SCALar:CURRent:DC?'));       % Current
-        voltage(samples) = str2double(writeread(visaObj, ':MEASure:SCALar:VOLTage:DC?'));       % Voltage
+        % Wait to collect some samples
+        pause(10);
+    
+        % Log voltage and current data
+        data = str2double(regexp(writeread(visaObj, sprintf('FETCh:ELOG? %g', 100)), ',', 'split'));
+    
+        % Print the data to the .txt file
+        fprintf(newFileID, "%g\n", data);
 
-        % Update axis of real-time plot
-        axis([0 samples -Vliminstr Vliminstr]);
+        % Exit condition
+        if toc(tCycle) >= (InRest40bis + t_rest_pulse)
+            break;
+        end
 
-        % Real-time plot of the voltage
-        addpoints(v, t(samples), voltage(samples));
-        drawnow
-        % Real-time plot of the current
-        addpoints(i, t(samples), current(samples));
-        drawnow
-
-        % Update samples index
-        samples = samples + 1;     
-        % Update time array
-        t(samples) = toc(tCycle);
-        
-        % Sampling time
-        pause(Ts); 
     end
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     
-    % Define a new SoC variable for iterating the discharge cycles
-    SOC0 = SOC;
+    % Abort the elog system
+    writeline(visaObj, ':ABORt:ELOG');
 
+    % Initialize the elog system
+    writeline(visaObj, ':INITiate:IMMediate:ELOG');
+    
     %%%%%%%%%%%%%%%%%%%%%%%%%% Discharge cycle %%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-    % Discharge C/3 to reach the next SoC value
+    % Discharge C/4 to reach the next SoC value
     fprintf("      Discharge %g %% of the State of Charge\n", (1/disCapStep));
 
     % Set the power supply to current priority mode
@@ -318,59 +317,44 @@ while (soc > 0) && (soc <= 100)
     % Turn the output on
     writeline(visaObj, ':OUTPut ON');  
 
+    % Trigger elog system
+    writeline(visaObj, ':TRIGger:ELOG:IMMediate');
+
+    % Track the start of the operation
+    InDisCycle = toc(tCycle);
+
     % Loop until the battery is discharged by the desired percentage
-    while SOC >= (SOC0 - 1/disCapStep)
+    while true
 
-        % Measure current and voltage and update data arrays
-        current(samples) = str2double(writeread(visaObj, ':MEASure:SCALar:CURRent:DC?'));       % Current
-        voltage(samples) = str2double(writeread(visaObj, ':MEASure:SCALar:VOLTage:DC?'));       % Voltage
+        % Wait to collect some samples
+        pause(10);
+    
+        % Log voltage and current data
+        data = str2double(regexp(writeread(visaObj, sprintf('FETCh:ELOG? %g', 100)), ',', 'split'));
+    
+        % Print the data to the .txt file
+        fprintf(newFileID, "%g\n", data);
 
-        % Update axis of real-time plot
-        axis([0 samples -Vliminstr Vliminstr]);
-
-        % Real-time plot of the voltage
-        addpoints(v, t(samples), voltage(samples));
-        drawnow
-        % Real-time plot of the current
-        addpoints(i, t(samples), current(samples));
-        drawnow
-
-        % Update samples index
-        samples = samples + 1;     
-        % Update time array
-        t(samples) = toc(tCycle);
-
-        % Exit if the undervoltage condition is reached
-%         if voltage(samples) < Vlimlow
-%             disp("The voltage is below the limit! Power-off.");
-% 
-%             % Disable the output
-%             writeline(visaObj, ':OUTPut OFF');
-%             break;     
-%         end
-        
-        % Sampling time
-        pause(Ts);                      
-        
-        % Update actual SoC
-        SOC = calcSOC(SOC, capacity, dischargeC3, (t(samples) - t(samples - 1)));
-
-        % Print:
-        %  - number of cycle
-        %  - time values
-        %  - SoC updates
-        %  - SoC goal
-        fprintf("         Cycle: %g ; time: %g ; SOC: %g ; Goal: %g\n", cycle, toc(tCycle), SOC, (SOC0 - (1/disCapStep)));
+        % Exit condition
+        if (toc(tCycle) >= (InDisCycle + tDisCycle)) || (data(end) < Vlimlow)
+            break;
+        end          
 
     end
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-    % Update SoC array
-    State_of_Charge(cycle) = SOC;
+    % Abort the elog system
+    writeline(visaObj, ':ABORt:ELOG');
 
-    % Exit the main loop if actual SoC is less than the percentage step during
-    % discharge
-    if (SOC - 0.3704) < (1/disCapStep)
+    % Initialize the elog system
+    writeline(visaObj, ':INITiate:IMMediate:ELOG');
+
+    % Update SoC after discharge cycle and print it
+    [SOC] = calcSOC(SOC, capacity, dischargeC3, tDisCycle);
+    fprintf("        SoC: %g\n", SOC);
+
+    % Exit the main loop if SoC reaches zero or if under-voltage is reached
+    if (SOC == 0) || (data(end) < Vlimlow)
 
         % Disable the output
         writeline(visaObj, ':OUTPut OFF'); 
@@ -379,33 +363,28 @@ while (soc > 0) && (soc <= 100)
     
         fprintf("      Rest %g sec before ending the test\n", Rest);
 
+        % Trigger elog system
+        writeline(visaObj, ':TRIGger:ELOG:IMMediate');
+
         % Track the start of the operation
         InExit = toc(tCycle);
 
         % Loop until the operation duration time is reached
-        while toc(tCycle) < (InExit + Rest)
+        while true
 
-            % Measure current and voltage and update data arrays
-            current(samples) = str2double(writeread(visaObj, ':MEASure:SCALar:CURRent:DC?'));       % Current
-            voltage(samples) = str2double(writeread(visaObj, ':MEASure:SCALar:VOLTage:DC?'));       % Voltage
+            % Wait to collect some samples
+            pause(10);
+        
+            % Log voltage and current data
+            data = str2double(regexp(writeread(visaObj, sprintf('FETCh:ELOG? %g', 100)), ',', 'split'));
+        
+            % Print the data to the .txt file
+            fprintf(newFileID, "%g\n", data);
 
-            % Update axis of real-time plot
-            axis([0 samples -Vliminstr Vliminstr]);
-    
-            % Real-time plot of the voltage
-            addpoints(v, t(samples), voltage(samples));
-            drawnow
-            % Real-time plot of the current
-            addpoints(i, t(samples), current(samples));
-            drawnow
-    
-            % Update samples index
-            samples = samples + 1;     
-            % Update time array
-            t(samples) = toc(tCycle);
-            
-            % Sampling time
-            pause(Ts); 
+            % Exit condition
+            if toc(tCycle) >= (InExit + Rest)
+                break;
+            end
     
         end
 
@@ -423,71 +402,84 @@ while (soc > 0) && (soc <= 100)
 
     fprintf("      Rest %g sec before next cycle\n", Rest);
 
+    % Trigger elog system
+    writeline(visaObj, ':TRIGger:ELOG:IMMediate');
+
     % Track the start of the operation
     InRest = toc(tCycle);
 
     % Loop until the operation duration time is reached
-    while toc(tCycle) < (InRest + Rest)
+    while true
 
-        % Measure current and voltage and update data arrays
-        current(samples) = str2double(writeread(visaObj, ':MEASure:SCALar:CURRent:DC?'));       % Current
-        voltage(samples) = str2double(writeread(visaObj, ':MEASure:SCALar:VOLTage:DC?'));       % Voltage
+        % Wait to collect some samples
+        pause(10);
+    
+        % Log voltage and current data
+        data = str2double(regexp(writeread(visaObj, sprintf('FETCh:ELOG? %g', 100)), ',', 'split'));
+    
+        % Print the data to the .txt file
+        fprintf(newFileID, "%g\n", data);
 
-        % Update axis of real-time plot
-        axis([0 samples -Vliminstr Vliminstr]);
-
-        % Real-time plot of the voltage
-        addpoints(v, t(samples), voltage(samples));
-        drawnow
-        % Real-time plot of the current
-        addpoints(i, t(samples), current(samples));
-        drawnow
-
-        % Update samples index
-        samples = samples + 1;     
-        % Update time array
-        t(samples) = toc(tCycle);
-        
-        % Sampling time
-        pause(Ts); 
+        % Exit condition
+        if toc(tCycle) >= (InRest + Rest)
+            break;
+        end
 
     end
 
-    % Update the value of the SoC for initiating a new HPPC cycle
-    soc = soc - (1/disCapStep);
+    % Abort the elog system
+    writeline(visaObj, ':ABORt:ELOG');
+
+    % Initialize the elog system
+    writeline(visaObj, ':INITiate:IMMediate:ELOG');
 
 end
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-% Trim the measurements
-current = current(current ~= 0);        % Current
-voltage = voltage(voltage ~= 0);        % Voltage
-t = t(t ~= 0);                          % Time
-% Update SoC array
-SOC = [100, State_of_Charge];
-SOC = SOC(SOC ~= 0);
+% Abort the elog system
+writeline(visaObj, ':ABORt:ELOG');
 
-% Insert measurement data inside a structure
-HPPCMeas = struct;
-HPPCMeas.Current = current;         % Current
-HPPCMeas.Voltage = voltage;         % Voltage
-HPPCMeas.SOC = SOC;                 % State of Charge
-HPPCMeas.Time = t;                  % Time
+%%
+
+% Close the file where data are logged
+fclose(newFileID);
+
+% Re-open the file where data are logged in read mode
+newFileID = fopen(FileName, 'r');
+
+% Read data from the file
+DataLog = fscanf(newFileID, '%f');
+
+% Extract logged data
+curr = DataLog(1:2:end);        % Current
+volt = DataLog(2:2:end);        % Voltage
+
+% Define time vector
+Time = Ts:Ts:((length(DataLog)/2) * Ts);
+Time = Time';
+
+% Define SoC vector
+SoC = 0:(1/disCapStep):100;
 
 % Plot voltage and current during the test
 figure;
 subplot(1, 2, 1)
-plot(t, current);
+plot(Time, curr);
 title('HPPC Test - current');
 xlabel('time [s]');
 ylabel('Current [A]');
 subplot(1, 2, 2)
-plot(t, voltage);
+plot(Time, volt);
 title('HPPC Test - voltage');
 xlabel('time [s]');
 ylabel('Voltage [V]');
 
-% Save voltage and current measurement in an external file
+% Create struct of data
+HPPCMeas.Time = Time;           % Time vector
+HPPCMeas.Current = curr;        % Current vector
+HPPCMeas.Voltage = volt;        % Voltage vector
+HPPCMeas.SoC = SoC;             % State-of-Charge vector
+
 % Create the output subfolder if it doesn't exist
 if ~exist('output', 'dir')
     mkdir('output');
@@ -497,8 +489,4 @@ end
 currentDateStr = datestr(now, 'yyyymmdd_HHMM');
 
 % Save the variable to the .mat file with the date-appended filename
-save(fullfile('output',[sprintf('Test_%s', currentDateStr),'.mat'] ), 'HPPCMeas')
-
-% Clear some variables
-% ...
-% ...
+save(fullfile('output',[sprintf('Test_%s', currentDateStr),'.mat'] ), 'HPPCMeas');
