@@ -2,18 +2,43 @@
 % ------------------- BATTERY CELL CHARACTERIZATION -----------------------
 % -------------------------------------------------------------------------
 
+% This script is used to characterize the equivalent model of the battery,
+% i.e. to find the significant parameters, such as the RC branches, the
+% internal resistance of the battery and the Open Circuit Voltage (OCV).
+% All parameters are expressed as a function of the State-of-Charge of the 
+% battery and are found by fitting the data obtained from specific tests 
+% carried out on the battery with the equivalent model of the battery
+% itself.
+% The script requires data collected from the battery during an HPPC test,
+% in order to detect the charge/discharge impulses and the drop voltages
+% during the discharge phase.
+
+%% Initialization
+
 clc;
 clear;
 close all;
 
-% Add files and folders to Matlab path
+% Add all files in current folder to Matlab path
 addpath(genpath(pwd))
 
 
 %% Loading data from HPPC test
 
-% Upload the dataset 
-load("Test_data/Test_20230914_1608.mat");    
+% Let the user choose a .mat file where HPPC data are stored
+[file, path] = uigetfile('HPPC_Test/output/*.mat');
+% Check file selection
+if isequal(file, 0)
+   disp('No file has been selected! Please select a file.');
+else
+   disp(['Selected file: ', fullfile(path, file)]);
+end
+
+%%
+
+% Load the data
+load(file);
+% Extract the data
 data = HPPCMeas;
 
 clear HPPCMeas;
