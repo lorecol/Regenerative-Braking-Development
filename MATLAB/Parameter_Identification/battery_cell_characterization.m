@@ -48,14 +48,12 @@ clear HPPCMeas path file;
 % time step, accordingly to Ts (sample time) and toc, which are parameters
 % defined in the mainHPPC file.
 
-current = data.Current';         % Current 
-voltage = data.Voltage';         % Voltage 
-time = data.Time';               % Time 
+current = data.Current;         % Current 
+voltage = data.Voltage;         % Voltage 
+time = data.Time;               % Time 
 
 % SOC
-SOC = data.SOC;
-SOC = SOC';
-SOC = flip(SOC);
+SOC = data.SoC;
 SOC = SOC/100;
 
 %% Plot the collected data
