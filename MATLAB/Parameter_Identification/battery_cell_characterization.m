@@ -19,8 +19,8 @@
 % The matlab example can be open with the following command:
 % openExample('simscapebattery/BatteryCellCharacterizationForElectricVehiclesExample')
 
-
 %% Initialization
+
 % Clear and close
 clc; clear all; close all;
 
@@ -46,7 +46,7 @@ data = HPPCMeas;
 % Clear some data
 clear HPPCMeas path file;
 
-%% Extracting data from dataset
+%% Extracting data from the dataset
 % Here we extract data from our dataset: in particular, we're interested in
 % current (A), voltage (V) and SOC (%); all these data are defined for each
 % time step, accordingly to Ts (sample time) and toc, which are parameters
@@ -113,10 +113,10 @@ hppc_protocol = [maxDischargeCurr   ;...
                  toleranceValChg    ;...
                  toleranceValDischg ;...
                  toleranceValSOC    ;...
-                 2];
-        
+                 k];
 
 %% Cell characterization
+
 % Define number of RC pairs to consider
 numRCpairs = 2;                     
 % Initial guesses for resistance and time costant τ=RC
@@ -124,7 +124,7 @@ initialGuess_RC = [0.1 10 0.1 10];
 
 % Perform data fitting
 result = batt_BatteryCellCharacterization.ParameterEstimationLUTbattery(...
-                                     [time, current, voltage],     ...
+                                     [time, current, voltage],                  ...
                                      cell_prop,                         ...
                                      hppc_protocol,                     ...
                                      numRCpairs,                        ...
@@ -143,6 +143,7 @@ verifyDataFit(result,fitDataEverySOCval,1);
 % with more RC pairs or try a different initial guess. 
 
 %% Saving parameters
+
 % Saving parameters in a variable
 battParameters = exportResultsForLib(result, SOC');
 
@@ -151,6 +152,7 @@ battParameters = exportResultsForLib(result, SOC');
 if ~exist('output', 'dir')
     mkdir('output');
 end
+
 % Get the current date as a formatted string (YYYYMMDD format)
 currentDateStr = datestr(now, 'yyyymmdd_HHMM');
 config = [num2str(series),'s', num2str(parallel),'p','_', num2str(numRCpairs),'RC'];
@@ -158,6 +160,7 @@ config = [num2str(series),'s', num2str(parallel),'p','_', num2str(numRCpairs),'R
 save(fullfile('output',[sprintf('batt_BatteryCharacterizationResults_%s_%s',config, currentDateStr),'.mat'] ), 'battParameters');
 
 %% Verify Parameters with Drive Profile
+
 % Do verify or not
 DO_VERIFY = 0;
 
@@ -196,6 +199,7 @@ if DO_VERIFY == 1
     legend('Original Cell', 'Parameterized Cell')
 
     disp('*** Battery Characterization finished!!');
+
 elseif DO_VERIFY == 0
     disp('*** Battery Characterization finished!!');
 else
