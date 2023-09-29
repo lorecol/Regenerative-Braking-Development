@@ -33,20 +33,21 @@ if ~exist('output', 'dir')
     mkdir('output');
 end
 
-% Define the list of tests that can be conducted and let the user choose
-% the test
-TestList = {'Capacity', 'HPPC'};
+% Define the list of tests that can be conducted and allow the user to 
+% choose which test to save data for
+TestList = {'CapacityTest', 'HppcTest'};
 Test = listdlg('PromptString', 'Which test are you performing?', ...
-                    'ListString', TestList, 'SelectionMode', 'single');
+               'ListString', TestList, 'SelectionMode', 'single'    );
+
 % Check if a test has been selected
 if ~isempty(Test)
     selectedVariable = TestList{Test};
 else
-    fprintf('No variable selected.\n');
+    fprintf('No test selected.\n');
 end
 
 % Define the name of the file where to log data
-FileName = sprintf("output/%s_Data.txt", TestList{Test});
+FileName = sprintf("output/%s_SerialDataLog.txt", TestList{Test});
 
 % Open the file where to log data in writing mode; create the file if not 
 % already present
@@ -55,11 +56,9 @@ newFileID = fopen(FileName, 'w+');
 % Visualize the file where to log data
 open(FileName);
 
-
 % Create a button to stop data logging
-ButtonHandle = uicontrol('Style', 'PushButton',         ...
-                         'String', 'Stop',              ...
-                         'Callback', 'delete(gcbf)'         );
+ButtonHandle = uicontrol('Style', 'PushButton', 'String', 'Stop', ...
+                         'Callback', 'delete(gcbf)'                  );
 
 % Send a string to start data logging
 writeline(s, "start");
