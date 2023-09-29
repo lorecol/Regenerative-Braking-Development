@@ -194,6 +194,7 @@ classdef (Sealed) ParameterEstimationLUTbattery
         ToleranceChg
         ToleranceDischg
         ToleranceSOC
+        k
         NumOfRCpairs
         OhmicResistance
         OpenCircuitPotential
@@ -210,7 +211,7 @@ classdef (Sealed) ParameterEstimationLUTbattery
     
     methods
 
-        function obj = ParameterEstimationLUTbattery(filename,cellProperty,hppcCurrents,...
+       function obj = ParameterEstimationLUTbattery(filename,cellProperty,hppcCurrents,...
                                                   nTimeConst,R_Tau_guess,fitMethod)
             if fitMethod ~= "curvefit" && fitMethod ~="fminsearch"
                 pm_error('Fit method must be fminsearch or curvefit');
@@ -237,6 +238,7 @@ classdef (Sealed) ParameterEstimationLUTbattery
                 obj.ToleranceChg            = hppcCurrents(4,1);
                 obj.ToleranceDischg         = hppcCurrents(5,1);
                 obj.ToleranceSOC            = hppcCurrents(6,1);
+                obj.k                       = hppcCurrents(7,1);
             end
             if nTimeConst > 0 && mod(nTimeConst,1) == 0
                 obj.NumOfRCpairs = nTimeConst;
@@ -404,12 +406,69 @@ classdef (Sealed) ParameterEstimationLUTbattery
         function errFit = verifyDataFit(obj,delSOC,ts)
             errFit = obj.paramVerificationPlots(delSOC,ts);
         end
-    
+   
     end
     
     methods(Access = private)
-        
+
         function [data, hppcPulseSequence] = getPulsesFromHPPCdata(obj)
+
+            %============= START - MY FUNCTIONS =====================
+            function diff = mydiff(vin, k)
+                %mydiff take the difference between the i value and the i-k value
+                
+                % initialize vector
+                vett = zeros(1, length(vin)-k);
+                % checking
+                if k < 0
+                    error('k must be positive');
+                end 
+                if k >=length(vin)
+                    error('k must be greater than the input vector length')
+                end
+                % main function 
+                for i = k+1:length(vin)
+                    vett(i-k) = vin(i) - vin(i-k);
+                end
+                diff = vett;
+            end
+
+            function newvec = removeCloseIdx(oldvec)
+                %removeCloseIdx Remove indeces that are too close to previous
+                % indeces
+                min_distance = 3;
+                % Initialize an empty array to store the final indecec
+                mynewvec = oldvec(1);
+                % Iterate through the oldvec(1) and keep only
+                % those that are spaced by at least min_distance
+                for i = 2:numel(oldvec)
+                    if oldvec(i) - mynewvec(end) >= min_distance
+                        mynewvec = [mynewvec, oldvec(i)];
+                    end
+                end
+                newvec = mynewvec;            
+            end
+
+            function vec2new = removeCloseIdx2Vec(vec1,vec2)
+                %removeCloseIdx2Vec removes from vec2 the
+                % values that are below threshold
+
+                % Define a threshold for closeness
+                threshold = 5.0;
+                
+                % Iterate through the values in vector1 and compare with corresponding values in vector2
+                for i = 1:numel(vec1)
+                    % Find the index in vector2 that is closest to the value in vector1
+                    [~, closest_idx] = find(abs(vec2 - vec1(i))<=threshold);
+                    
+                    % Delete the values from vector2 based on the delete_mask
+                    vec2(closest_idx) = [];
+                end
+                vec2new = vec2;
+            end
+
+            %============ END - MY FUNCTIONS==============================
+            
             % Discharge Pulse
             current_dischg = obj.InputTestData.I; % Assigning current data to 
                                                   % a variable
@@ -433,17 +492,24 @@ classdef (Sealed) ParameterEstimationLUTbattery
             % length(find(current_dischg == 0));
             % current_dischg;
             
-            indxDischgPulseStart = find(abs(abs(diff(current_dischg)) - obj.DischargePulseCurr) < obj.ToleranceDischg & ...
-                                   diff(current_dischg) < 0); % include the pulse current portion
-%             fprintf('the element index is: %f',indxDischgPulseStart)
-
+            indxDischgPulseStart = find(abs(abs(mydiff(current_dischg, obj.k)) - obj.DischargePulseCurr) < obj.ToleranceDischg & ...
+                                   mydiff(current_dischg, obj.k) < 0); % include the pulse current portion
+            % Remove too close indexes
+            indxDischgPulseStart = removeCloseIdx(indxDischgPulseStart);
+            disp(['DEBUG: the indxDischgPulseStart indexes are:', num2str(indxDischgPulseStart)])
+            
+            % Number of discharge pulses
             nPulses_discharge    = length(indxDischgPulseStart);
             disp(strcat('*** Number of discharge pulses = ',num2str(nPulses_discharge)));
 
             if nPulses_discharge > 0
-                indxDischgPulseEnd   = find(abs(abs(diff(current_dischg)) - obj.DischargePulseCurr) < obj.ToleranceDischg & ...
-                                            diff(current_dischg) > 0);
+                indxDischgPulseEnd   = find(abs(abs(mydiff(current_dischg,obj.k)) - obj.DischargePulseCurr) < obj.ToleranceDischg & ...
+                                            mydiff(current_dischg, obj.k) > 0);
+                % Remove too close indexes
+                indxDischgPulseEnd = removeCloseIdx(indxDischgPulseEnd);
+                % Exlude all indexes smallest than the start index
                 indxDischgPulseEnd   = indxDischgPulseEnd(indxDischgPulseEnd > indxDischgPulseStart(1));
+                disp(['DEBUG: the indxDischgPulseEnd indexes are: ', num2str(indxDischgPulseEnd)])
                 indxDischgPulseMid   = indxDischgPulseStart + 1;
                 indxDischgRelaxStart = indxDischgPulseEnd + 1;
             else
@@ -480,17 +546,22 @@ classdef (Sealed) ParameterEstimationLUTbattery
             % current_chg;
 
 
-            indxChgPulseStart = find(abs(abs(diff(current_chg)) - obj.ChargePulseCurr) < obj.ToleranceChg & ...
-                                     diff(current_chg) > 0); % include the pulse current portion
-  
+            indxChgPulseStart = find(abs(abs(mydiff(current_chg,obj.k)) - obj.ChargePulseCurr) < obj.ToleranceChg & ...
+                                     mydiff(current_chg, obj.k) > 0); % include the pulse current portion
+            % Remove too close indexes
+            indxChgPulseStart = removeCloseIdx(indxChgPulseStart);
+            disp(['DEBUG: the indxChgPulseStart indexes are: ', num2str(indxChgPulseStart)])
             
             nPulses_charge    = length(indxChgPulseStart);
             disp(strcat('*** Number of charge pulses    = ',num2str(nPulses_charge)));
            
             if nPulses_charge > 0
-                indxChgPulseEnd   = find(abs(abs(diff(current_chg)) - obj.ChargePulseCurr) < obj.ToleranceChg & ...
-                                         diff(current_chg) < 0);
+                indxChgPulseEnd   = find(abs(abs(mydiff(current_chg, obj.k)) - obj.ChargePulseCurr) < obj.ToleranceChg & ...
+                                         mydiff(current_chg, obj.k) < 0);
+                % Remove too close indexes
+                indxChgPulseEnd = removeCloseIdx(indxChgPulseEnd);
                 indxChgPulseEnd   = indxChgPulseEnd(indxChgPulseEnd > indxChgPulseStart(1));
+                disp(['DEBUG: the indxChgPulseEnd indexes are: ', num2str(indxChgPulseEnd)])
                 indxChgPulseMid   = indxChgPulseStart + 1;
                 indxChgRelaxStart = indxChgPulseEnd + 1;
             else
@@ -504,11 +575,29 @@ classdef (Sealed) ParameterEstimationLUTbattery
 %             disp(strcat('indxChgPulseMid = ', num2str(indxChgPulseMid))); % added
             
             % SOC Sweep
-            indxSOCPulseStart = find(abs(abs(diff(obj.InputTestData.I)) - abs(obj.ConstantCurrDischarge)) < obj.ToleranceSOC & ...
-                                     diff(obj.InputTestData.I) < 0); % include the pulse current portion
-            indxSOCPulseEnd   = find(abs(abs(diff(obj.InputTestData.I)) - abs(obj.ConstantCurrDischarge)) < obj.ToleranceSOC & ...
-                                     diff(obj.InputTestData.I) > 0);
+            indxSOCPulseStart = find(abs(abs(mydiff(obj.InputTestData.I,obj.k)) - abs(obj.ConstantCurrDischarge)) < obj.ToleranceSOC & ...
+                                     mydiff(obj.InputTestData.I, obj.k) < 0); % include the pulse current portion
+            % Remove too close indexes
+            indxSOCPulseStart = removeCloseIdx(indxSOCPulseStart);
+            % Remove indexes too close to charge and discharge pulses
+            indxSOCPulseStart = removeCloseIdx2Vec(indxDischgPulseStart,indxSOCPulseStart);
+            indxSOCPulseStart = removeCloseIdx2Vec(indxDischgPulseEnd,indxSOCPulseStart);
+            indxSOCPulseStart = removeCloseIdx2Vec(indxChgPulseStart,indxSOCPulseStart);
+            indxSOCPulseStart = removeCloseIdx2Vec(indxChgPulseEnd,indxSOCPulseStart);
+            disp(['DEBUG: the indxSOCPulseStart indexes are: ', num2str(indxSOCPulseStart)]);
+            
+            indxSOCPulseEnd   = find(abs(abs(mydiff(obj.InputTestData.I, obj.k)) - abs(obj.ConstantCurrDischarge)) < obj.ToleranceSOC & ...
+                                     mydiff(obj.InputTestData.I, obj.k) > 0);
+            % Remove too close indexes
+            indxSOCPulseEnd = removeCloseIdx(indxSOCPulseEnd);
+            % Remove indexes too close to charge and discharge pulses
+            indxSOCPulseEnd = removeCloseIdx2Vec(indxDischgPulseStart,indxSOCPulseEnd);
+            indxSOCPulseEnd = removeCloseIdx2Vec(indxDischgPulseEnd,indxSOCPulseEnd);
+            indxSOCPulseEnd = removeCloseIdx2Vec(indxChgPulseStart,indxSOCPulseEnd);
+            indxSOCPulseEnd = removeCloseIdx2Vec(indxChgPulseEnd,indxSOCPulseEnd);
+            
             indxSOCPulseEnd   = indxSOCPulseEnd(indxSOCPulseEnd > indxSOCPulseStart(1));
+            disp(['DEBUG: the indxSOCPulseEnd indexes are: ', num2str(indxSOCPulseEnd)]);
             % 
             if length(indxSOCPulseEnd) < length(indxSOCPulseStart)
                 indxSOCPulseStart = indxSOCPulseStart(1:length(indxSOCPulseEnd));
@@ -517,29 +606,35 @@ classdef (Sealed) ParameterEstimationLUTbattery
             indxSOCRelaxStart = indxSOCPulseEnd + 1;
             nPulses_socSweep  = length(indxSOCPulseStart);
             disp(strcat('*** Number of SOC sweep pulses = ',num2str(nPulses_socSweep))); 
+            
+            fprintf('DEBUG: \n')
+            fprintf('   indxDischgPulseStart: %f \n', length(indxDischgPulseStart))
+            fprintf('   indxDischgPulseEnd: %f \n', length(indxDischgPulseEnd))
+            fprintf('   indxDischgPulseMid: %f \n', length(indxDischgPulseMid))
+            fprintf('   indxDischgRelaxStart: %f \n', length(indxDischgRelaxStart))
 
             if nPulses_discharge > 0
-                tmp_dischg = [indxDischgPulseStart, ...
-                              indxDischgPulseEnd, ...
-                              indxDischgPulseMid, ...
-                              indxDischgRelaxStart, ...
+                tmp_dischg = [indxDischgPulseStart', ...
+                              indxDischgPulseEnd', ...
+                              indxDischgPulseMid', ...
+                              indxDischgRelaxStart', ...
                               -1*ones(nPulses_discharge,1)];
             else
                 tmp_dischg = [0 0 0 0 -1];
             end
             if nPulses_charge > 0
-                tmp_charge = [indxChgPulseStart, ...
-                              indxChgPulseEnd, ...
-                              indxChgPulseMid, ...
-                              indxChgRelaxStart, ...
+                tmp_charge = [indxChgPulseStart', ...
+                              indxChgPulseEnd', ...
+                              indxChgPulseMid', ...
+                              indxChgRelaxStart', ...
                               ones(nPulses_charge,1)];
             else
-                tmp_chg = [0 0 0 0 1];
+                tmp_charge = [0 0 0 0 1];
             end
-            tmp_sweep  = [indxSOCPulseStart, ...
-                          indxSOCPulseEnd, ...
-                          indxSOCPulseMid, ...
-                          indxSOCRelaxStart, ...
+            tmp_sweep  = [indxSOCPulseStart', ...
+                          indxSOCPulseEnd', ...
+                          indxSOCPulseMid', ...
+                          indxSOCRelaxStart', ...
                           zeros(nPulses_socSweep,1)];
             if nPulses_charge > 0 && nPulses_discharge > 0
                 hppcSeqSortData = vertcat(tmp_dischg,tmp_charge,tmp_sweep);
@@ -722,7 +817,7 @@ classdef (Sealed) ParameterEstimationLUTbattery
                         data.Properties.VariableNames{4} = 'SOC';  % renaming table to be consistent    
                     end
                     
-                    if min(diff(data.time)) < 0
+                    if min(mydiff(data.time,obj.k)) < 0
                         pm_error('time data in the first column should be monotonically increasing data');
                     end
                 else
