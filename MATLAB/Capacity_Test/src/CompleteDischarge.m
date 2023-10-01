@@ -1,14 +1,6 @@
-function [VoltCapacity, CurrCapacity, Time, TimerEnd] = CompleteDischarge(visaObj, Vlimreal, Vlimlow, Ilev, Ts)
+function [TimerEnd] = CompleteDischarge(visaObj, Vlimreal, Vlimlow, Ilev, newFileID)
 
-fprintf("Start of capacity test");
-
-% Initialize data arrays
-VoltCapacity = [];       % Voltage 
-CurrCapacity = [];       % Current 
-Time = [];               % Time 
-
-% Initialize index for data collection
-idx = 1;
+fprintf("Start of capacity test\n");
 
 % Set the operating mode to CC
 writeline(visaObj, ':SOURce:FUNCtion CURRENT');
@@ -21,56 +13,43 @@ writeline(visaObj, sprintf(':SOURce:CURRent:LEVel:IMMediate:AMPLitude %g', -Ilev
 % Enable the output
 writeline(visaObj, ':OUTPut:STATe ON');
 
-% Start the external timer
+% Wait some time before discharging
+pause(1);
+
+% Trigger elog system
+writeline(visaObj, ':TRIGger:ELOG:IMMediate');
+
+% Start the external reference timer
 TimerStart = tic;
-
-% Take a first measure
-dc_VDis = str2double(writeread(visaObj, ':MEASure:SCALar:VOLTage:DC?'));    % Voltage
-dc_IDis = str2double(writeread(visaObj, ':MEASure:SCALar:CURRent:DC?'));    % Current
-
-% Update the measurement arrays after first measure
-VoltCapacity(idx) = dc_VDis;         % Voltage
-CurrCapacity(idx) = dc_IDis;         % Current
-
-% Update time array after first measure
-Time(idx) = idx * Ts;
 
 %%%%%%%%%%%%%%%%%%%%%%%%%% COMPLETE DISCHARGE %%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Continue until the voltage reaches the imposed limit
-while dc_VDis >= Vlimlow
+while true
 
-    % Sampling time
-    pause(Ts);
+    % Wait to collect some samples
+    pause(10);
 
-    % Measure voltage
-    dc_VDis = str2double(writeread(visaObj, ':MEASure:SCALar:VOLTage:DC?'));
+    % Log data
+    data = str2double(regexp(writeread(visaObj, sprintf('FETCh:ELOG? %g', 100)), ',', 'split'));
 
-    % Measure current
-    dc_IDis = str2double(writeread(visaObj, ':MEASure:SCALar:CURRent:DC?'));
+    % Print the data to the .txt file
+    fprintf(newFileID, "%g\n", data);
 
-    % Update index after each measure
-    idx = idx + 1;
-
-    % Update the measurement arrays after each measure
-    VoltCapacity(idx) = dc_VDis;         % Voltage
-    CurrCapacity(idx) = dc_IDis;         % Current
-
-    % Update time array
-    Time(idx) = idx * Ts;
+    if data(end) <= Vlimlow
+        break;
+    end
 
 end
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-% Stop the external timer
-TimerEnd = toc(TimerStart)/60;          % [min]
-
-% Shut down the output
+% Turn the output off
 writeline(visaObj, ':OUTPut:STATe OFF');
 
-% Convert data array to column vectors
-VoltCapacity = VoltCapacity';
-CurrCapacity = CurrCapacity';
-Time = Time';
+% Abort the elog system
+writeline(visaObj, ':ABORt:ELOG');
+
+% Stop the external timer
+TimerEnd = toc(TimerStart)/60;          % [min]
 
 fprintf(" ------> Capacity test completed.\n");
 
