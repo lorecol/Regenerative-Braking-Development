@@ -178,8 +178,8 @@ end
 
 if strcmp(selectedVariable, VERIFY{1}) == 1
     % Load the drive profile. As default is loaded example one 
-    % (src/loadProfiles/batt_BatteryCellCharacterizationForBEV_Ivst.mat)
-    driveProfile = load('src/loadProfiles/batt_BatteryCellCharacterizationForBEV_Ivst.mat');
+    % (src/loadProfiles/BatteryCellCharacterizationForBEV_Ivst.mat)
+    driveProfile = load('src/loadProfiles/BatteryCellCharacterizationForBEV_Ivst.mat');
     maxCurrentPack = max(driveProfile.ans.Data);
     minCurrentPack = min(driveProfile.ans.Data);
     
