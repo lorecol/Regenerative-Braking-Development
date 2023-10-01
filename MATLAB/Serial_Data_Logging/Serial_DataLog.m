@@ -46,8 +46,11 @@ else
     fprintf('No test selected.\n');
 end
 
+% Get the current date as a formatted string (YYYYMMDD format)
+currentDateStr = datestr(now, 'yyyymmdd_HHMM');
+
 % Define the name of the file where to log data
-FileName = sprintf("output/%s_SerialDataLog.txt", TestList{Test});
+FileName = sprintf("output/%s_SerialDataLog_%s.txt", TestList{Test}, currentDateStr);
 
 % Open the file where to log data in writing mode; create the file if not 
 % already present
