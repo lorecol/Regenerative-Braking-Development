@@ -522,6 +522,8 @@ HPPCMeas.Capacity = Capacity;                           % [Ah] Capacity
 HPPCMeas.curr_charge_pulse = curr_charge_pulse;         % [A]  Current during charge pulse
 HPPCMeas.curr_discharge_pulse = curr_discharge_pulse;   % [A]  Current during discharge pulse
 HPPCMeas.dischargeC3 = dischargeC3;                     % [A]  Current during SOC decrease
+HPPCMeas.parallels = parallels;                         % Number of parallels in battery configuration
+HPPCMeas.series = series;                               % Number of series in battery configuration
 
 % Get the current date as a formatted string (YYYYMMDD format)
 currentDateStr = datestr(now, 'yyyymmdd_HHMM');
