@@ -111,8 +111,11 @@ if ~exist('output', 'dir')
     mkdir('output');
 end
 
+% Get the current date as a formatted string (YYYYMMDD format)
+currentDateStr = datestr(now, 'yyyymmdd_HHMM');
+
 % Define the name of the file where to log data
-FileName = "output/HPPCTestDataLog.txt";
+FileName = sprintf("output/Test_%s_DataLog_%s.txt", BatteryList{Battery}, currentDateStr);
 % Open the file where to log data in writing mode; create the file if not 
 % present
 newFileID = fopen(FileName, 'w+');
@@ -524,9 +527,6 @@ HPPCMeas.curr_discharge_pulse = curr_discharge_pulse;   % [A]  Current during di
 HPPCMeas.dischargeC3 = dischargeC3;                     % [A]  Current during SOC decrease
 HPPCMeas.parallels = parallels;                         % Number of parallels in battery configuration
 HPPCMeas.series = series;                               % Number of series in battery configuration
-
-% Get the current date as a formatted string (YYYYMMDD format)
-currentDateStr = datestr(now, 'yyyymmdd_HHMM');
 
 % Save the variable to the .mat file with the date-appended filename
 save(fullfile('output', [sprintf('Test_%s_%s', BatteryList{Battery}, currentDateStr),'.mat'] ), 'HPPCMeas');
