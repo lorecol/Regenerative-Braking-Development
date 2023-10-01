@@ -496,7 +496,7 @@ classdef (Sealed) ParameterEstimationLUTbattery
                                    mydiff(current_dischg, obj.k) < 0); % include the pulse current portion
             % Remove too close indexes
             indxDischgPulseStart = removeCloseIdx(indxDischgPulseStart);
-            disp(['DEBUG: the indxDischgPulseStart indexes are:', num2str(indxDischgPulseStart)])
+%             disp(['DEBUG: the indxDischgPulseStart indexes are:', num2str(indxDischgPulseStart)])
             
             % Number of discharge pulses
             nPulses_discharge    = length(indxDischgPulseStart);
@@ -509,7 +509,7 @@ classdef (Sealed) ParameterEstimationLUTbattery
                 indxDischgPulseEnd = removeCloseIdx(indxDischgPulseEnd);
                 % Exlude all indexes smallest than the start index
                 indxDischgPulseEnd   = indxDischgPulseEnd(indxDischgPulseEnd > indxDischgPulseStart(1));
-                disp(['DEBUG: the indxDischgPulseEnd indexes are: ', num2str(indxDischgPulseEnd)])
+%                 disp(['DEBUG: the indxDischgPulseEnd indexes are: ', num2str(indxDischgPulseEnd)])
                 indxDischgPulseMid   = indxDischgPulseStart + 1;
                 indxDischgRelaxStart = indxDischgPulseEnd + 1;
             else
@@ -517,10 +517,6 @@ classdef (Sealed) ParameterEstimationLUTbattery
                 indxDischgPulseMid = indxDischgPulseStart;
                 indxDischgRelaxStart = indxDischgPulseStart;
             end
-
-%             disp(strcat('indxDischgPulseStart = ', num2str(indxDischgPulseStart))); % added
-%             disp(strcat('indxDischgPulseEnd = ', num2str(indxDischgPulseEnd))); % added
-%             disp(strcat('indxDischgPulseMid = ', num2str(indxDischgPulseMid))); % added
             
             % Charge Pulse
             current_chg = obj.InputTestData.I;  % Assigning current data to 
@@ -550,7 +546,7 @@ classdef (Sealed) ParameterEstimationLUTbattery
                                      mydiff(current_chg, obj.k) > 0); % include the pulse current portion
             % Remove too close indexes
             indxChgPulseStart = removeCloseIdx(indxChgPulseStart);
-            disp(['DEBUG: the indxChgPulseStart indexes are: ', num2str(indxChgPulseStart)])
+%             disp(['DEBUG: the indxChgPulseStart indexes are: ', num2str(indxChgPulseStart)])
             
             nPulses_charge    = length(indxChgPulseStart);
             disp(strcat('*** Number of charge pulses    = ',num2str(nPulses_charge)));
@@ -561,7 +557,7 @@ classdef (Sealed) ParameterEstimationLUTbattery
                 % Remove too close indexes
                 indxChgPulseEnd = removeCloseIdx(indxChgPulseEnd);
                 indxChgPulseEnd   = indxChgPulseEnd(indxChgPulseEnd > indxChgPulseStart(1));
-                disp(['DEBUG: the indxChgPulseEnd indexes are: ', num2str(indxChgPulseEnd)])
+%                 disp(['DEBUG: the indxChgPulseEnd indexes are: ', num2str(indxChgPulseEnd)])
                 indxChgPulseMid   = indxChgPulseStart + 1;
                 indxChgRelaxStart = indxChgPulseEnd + 1;
             else
@@ -569,10 +565,6 @@ classdef (Sealed) ParameterEstimationLUTbattery
                 indxChgPulseMid   = indxChgPulseStart;
                 indxChgRelaxStart = indxChgPulseStart;
             end
-
-%             disp(strcat('indxChgPulseStart = ', num2str(indxChgPulseStart))); % added
-%             disp(strcat('indxChgPulseEnd = ', num2str(indxChgPulseEnd))); % added
-%             disp(strcat('indxChgPulseMid = ', num2str(indxChgPulseMid))); % added
             
             % SOC Sweep
             indxSOCPulseStart = find(abs(abs(mydiff(obj.InputTestData.I,obj.k)) - abs(obj.ConstantCurrDischarge)) < obj.ToleranceSOC & ...
@@ -584,7 +576,7 @@ classdef (Sealed) ParameterEstimationLUTbattery
             indxSOCPulseStart = removeCloseIdx2Vec(indxDischgPulseEnd,indxSOCPulseStart);
             indxSOCPulseStart = removeCloseIdx2Vec(indxChgPulseStart,indxSOCPulseStart);
             indxSOCPulseStart = removeCloseIdx2Vec(indxChgPulseEnd,indxSOCPulseStart);
-            disp(['DEBUG: the indxSOCPulseStart indexes are: ', num2str(indxSOCPulseStart)]);
+%             disp(['DEBUG: the indxSOCPulseStart indexes are: ', num2str(indxSOCPulseStart)]);
             
             indxSOCPulseEnd   = find(abs(abs(mydiff(obj.InputTestData.I, obj.k)) - abs(obj.ConstantCurrDischarge)) < obj.ToleranceSOC & ...
                                      mydiff(obj.InputTestData.I, obj.k) > 0);
@@ -597,8 +589,8 @@ classdef (Sealed) ParameterEstimationLUTbattery
             indxSOCPulseEnd = removeCloseIdx2Vec(indxChgPulseEnd,indxSOCPulseEnd);
             
             indxSOCPulseEnd   = indxSOCPulseEnd(indxSOCPulseEnd > indxSOCPulseStart(1));
-            disp(['DEBUG: the indxSOCPulseEnd indexes are: ', num2str(indxSOCPulseEnd)]);
-            % 
+%             disp(['DEBUG: the indxSOCPulseEnd indexes are: ', num2str(indxSOCPulseEnd)]);
+             
             if length(indxSOCPulseEnd) < length(indxSOCPulseStart)
                 indxSOCPulseStart = indxSOCPulseStart(1:length(indxSOCPulseEnd));
             end
@@ -607,11 +599,11 @@ classdef (Sealed) ParameterEstimationLUTbattery
             nPulses_socSweep  = length(indxSOCPulseStart);
             disp(strcat('*** Number of SOC sweep pulses = ',num2str(nPulses_socSweep))); 
             
-            fprintf('DEBUG: \n')
-            fprintf('   indxDischgPulseStart: %f \n', length(indxDischgPulseStart))
-            fprintf('   indxDischgPulseEnd: %f \n', length(indxDischgPulseEnd))
-            fprintf('   indxDischgPulseMid: %f \n', length(indxDischgPulseMid))
-            fprintf('   indxDischgRelaxStart: %f \n', length(indxDischgRelaxStart))
+%             fprintf('DEBUG: \n')
+%             fprintf('   indxDischgPulseStart: %f \n', length(indxDischgPulseStart))
+%             fprintf('   indxDischgPulseEnd: %f \n', length(indxDischgPulseEnd))
+%             fprintf('   indxDischgPulseMid: %f \n', length(indxDischgPulseMid))
+%             fprintf('   indxDischgRelaxStart: %f \n', length(indxDischgRelaxStart))
 
             if nPulses_discharge > 0
                 tmp_dischg = [indxDischgPulseStart', ...

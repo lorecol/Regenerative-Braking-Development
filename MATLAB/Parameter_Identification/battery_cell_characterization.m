@@ -54,15 +54,15 @@ clear HPPCMeas path file;
 
 % Change range if needed
 current = data.Current;         % Current 
-%current = current(1:157000);
+% current = current(1:157000);
 voltage = data.Voltage;         % Voltage 
-%voltage = voltage(1:157000);
+% voltage = voltage(1:157000);
 time = data.Time;               % Time 
-%time = time(1:157000);
+% time = time(1:157000);
 
 % SOC
 SOC = data.SoC;
-SOC = SOC/100;
+SOC = SOC/100;                  % Convert to decimals
 
 %% Plot the collected data
 
@@ -97,15 +97,14 @@ maxChargeCurr = abs(data.curr_charge_pulse);           % [A] Maximum charge curr
 constCurrSweepSOC = abs(data.dischargeC3);             % [A] Current sweep
 
 % Tolerances depending on the power supply accuracy
-toleranceValChg = 0.1;                           % [A] Current tolerance for charge impulse
-toleranceValDischg = 0.5;                        % [A] Current tolerance for discharge impulse
-toleranceValSOC = 0.1;                           % [A] Current tolerance for SoC sweep
+toleranceValChg = 0.1;                                 % [A] Current tolerance for charge impulse
+toleranceValDischg = 0.5;                              % [A] Current tolerance for discharge impulse
+toleranceValSOC = 0.1;                                 % [A] Current tolerance for SoC sweep
 
-% Paramater for data fitting function diff = current(i) - current(i - k) 
+% Paramater for data fitting function: diff = current(i) - current(i - k) 
 k = 2;  
-% e.g.  If the power supply instrument in a sampling period time of 0.1s
-%       can't achieve a desired current this helps in finding
-%       the sudden changes.                            
+% e.g.  If the power supply instrument in a sampling period of 0.1 s fails 
+%       to reach the desired current, this helps to detect sudden changes.                            
 
 % Create the hppc protocol
 hppc_protocol = [maxDischargeCurr   ;...
@@ -125,12 +124,12 @@ initialGuess_RC = [0.1 10 0.1 10];
 
 % Perform data fitting
 result = batt_BatteryCellCharacterization.ParameterEstimationLUTbattery(...
-                                     [time, current, voltage],                  ...
+                                     [time, current, voltage],          ...
                                      cell_prop,                         ...
                                      hppc_protocol,                     ...
                                      numRCpairs,                        ...
                                      initialGuess_RC,                   ...
-                                     "curvefit"); % or fminsearch
+                                     "curvefit");           % or fminsearch
 
 % Check if the the correct pulses have been identified 
 plotAndVerifyPulseData(result);
@@ -138,7 +137,7 @@ plotAndVerifyPulseData(result);
 % Verify the fitting procedure
 fitDataEverySOCval = 0.001;
 fitDataForSOCpts = 0:fitDataEverySOCval:1;
-verifyDataFit(result,fitDataEverySOCval,1);
+verifyDataFit(result, fitDataEverySOCval, 1);
 
 % If the estimated parameters do not look reasonable, try fitting them
 % with more RC pairs or try different initial guesses. 
@@ -164,7 +163,7 @@ save(fullfile('output',[sprintf('BatteryCharacterizationResults_%s_%s',config, c
 %% Verify Parameters with Drive Profile
 
 VERIFY = {'Yes', 'No'};
-DO_VERIFY = listdlg('PromptString', {'Do you want to validate the resulting model?', ''}, ...
+DO_VERIFY = listdlg('PromptString', {'Do you want to validate the resulting model? Y/N:', ''}, ...
                'ListString', VERIFY, 'SelectionMode', 'single'                               );
 
 % Check if a battery configuration has been selected
@@ -213,9 +212,9 @@ if strcmp(selectedVariable, VERIFY{1}) == 1
 elseif strcmp(selectedVariable, VERIFY{2}) == 1
     disp('*** Battery Characterization finished!!');
 else
-    error('Ypu have to choose between Y/N');
+    error('You have to choose between Y/N.');
 end
 
-% If the error is not within acceptable limits, try with a 
-% different initial guess, a different number of RC pairs, or by using 
-% a different fitting method (fminsearch, Curve Fitting Toolbox). 
+% If the error is not within acceptable limits, try with a different 
+% initial guess, a different number of RC pairs, or by using a different 
+% fitting method (fminsearch, Curve Fitting Toolbox). 
