@@ -82,29 +82,30 @@ ylabel('Voltage (V)')
 %% Define parameters for battery characterization 
 
 % Battery configuration
-parallel = 1;                           
-series = 1;
-cellCapacity = 3;                       % Cell Capacity [Ah]
-totCapacity = cellCapacity * parallel;  % Tot capacity [Ah]             
-cellInitialSOC = SOC(end);              % Initial SOC
+parallels = data.parallels;     % Number of series
+series = data.series;           % Number of parallels
+
+Capacity = data.Capacity;       % [Ah] Battery capacity
+cellInitialSOC = SOC(end);      % Initial SOC
 
 % Cell properties array
-cell_prop = [totCapacity; cellInitialSOC];    
+cell_prop = [Capacity; cellInitialSOC];    
 
 % HPPC Currents
-maxDischargeCurr = 2 * parallel;    % [A] Maximum discharge current 
-maxChargeCurr = 2 * parallel;       % [A] Maximum charge current
-constCurrSweepSOC = 1;              % [A] Current sweep
+maxDischargeCurr = abs(data.curr_discharge_pulse);     % [A] Maximum discharge current 
+maxChargeCurr = abs(data.curr_charge_pulse);           % [A] Maximum charge current
+constCurrSweepSOC = abs(data.dischargeC3);             % [A] Current sweep
 
 % Tolerances depending on the power supply accuracy
-toleranceValChg = 0.1;              % [A] Current tolerance for charge impulse
-toleranceValDischg = 0.5;           % [A] Current tolerance for discharge impulse
-toleranceValSOC = 0.1;              % [A] Current tolerance for SoC sweep
-% Paramater for data fitting function diff=current(i)-current(i-k). 
+toleranceValChg = 0.1;                           % [A] Current tolerance for charge impulse
+toleranceValDischg = 0.5;                        % [A] Current tolerance for discharge impulse
+toleranceValSOC = 0.1;                           % [A] Current tolerance for SoC sweep
+
+% Paramater for data fitting function diff = current(i) - current(i - k) 
+k = 2;  
 % e.g.  If the power supply instrument in a sampling period time of 0.1s
 %       can't achieve a desired current this helps in finding
-%       the sudden changes.
-k = 2;                              
+%       the sudden changes.                            
 
 % Create the hppc protocol
 hppc_protocol = [maxDischargeCurr   ;...
@@ -131,7 +132,7 @@ result = batt_BatteryCellCharacterization.ParameterEstimationLUTbattery(...
                                      initialGuess_RC,                   ...
                                      "curvefit"); % or fminsearch
 
-% To check if the function identified the correct pulses
+% Check if the the correct pulses have been identified 
 plotAndVerifyPulseData(result);
 
 % Verify the fitting procedure
@@ -140,9 +141,9 @@ fitDataForSOCpts = 0:fitDataEverySOCval:1;
 verifyDataFit(result,fitDataEverySOCval,1);
 
 % If the estimated parameters do not look reasonable, try fitting them
-% with more RC pairs or try a different initial guess. 
+% with more RC pairs or try different initial guesses. 
 
-%% Saving parameters
+%% Save parameters resulting from fitting procedure
 
 % Saving parameters in a variable
 battParameters = exportResultsForLib(result, SOC');
@@ -155,20 +156,29 @@ end
 
 % Get the current date as a formatted string (YYYYMMDD format)
 currentDateStr = datestr(now, 'yyyymmdd_HHMM');
-config = [num2str(series),'s', num2str(parallel),'p','_', num2str(numRCpairs),'RC'];
+config = [num2str(series),'s', num2str(parallels),'p','_', num2str(numRCpairs),'RC'];
+
 % Save the variable to the .mat file with the date-appended filename
-save(fullfile('output',[sprintf('batt_BatteryCharacterizationResults_%s_%s',config, currentDateStr),'.mat'] ), 'battParameters');
+save(fullfile('output',[sprintf('BatteryCharacterizationResults_%s_%s',config, currentDateStr),'.mat'] ), 'battParameters');
 
 %% Verify Parameters with Drive Profile
 
-% Do verify or not
-DO_VERIFY = 0;
+VERIFY = {'Yes', 'No'};
+DO_VERIFY = listdlg('PromptString', {'Do you want to validate the resulting model?', ''}, ...
+               'ListString', VERIFY, 'SelectionMode', 'single'                               );
 
-% The CellCharacterizationVerify.slx model uses a drive profile 
-% to compare the parameterized battery against the original one.
+% Check if a battery configuration has been selected
+if ~isempty(DO_VERIFY)
+    selectedVariable = VERIFY{DO_VERIFY};
+else
+    fprintf('No answer selected.\n');
+end
 
-if DO_VERIFY == 1
-    % Load the load profile. As default is loaded example one 
+% The CellCharacterizationVerify.slx model uses a drive profile to compare 
+% the parameterized battery against the original one.
+
+if strcmp(selectedVariable, VERIFY{1}) == 1
+    % Load the drive profile. As default is loaded example one 
     % (src/loadProfiles/batt_BatteryCellCharacterizationForBEV_Ivst.mat)
     driveProfile = load('src/loadProfiles/batt_BatteryCellCharacterizationForBEV_Ivst.mat');
     maxCurrentPack = max(driveProfile.ans.Data);
@@ -200,10 +210,10 @@ if DO_VERIFY == 1
 
     disp('*** Battery Characterization finished!!');
 
-elseif DO_VERIFY == 0
+elseif strcmp(selectedVariable, VERIFY{2}) == 1
     disp('*** Battery Characterization finished!!');
 else
-    error('DO_VERIFY must be 0 or 1');
+    error('Ypu have to choose between Y/N');
 end
 
 % If the error is not within acceptable limits, try with a 
