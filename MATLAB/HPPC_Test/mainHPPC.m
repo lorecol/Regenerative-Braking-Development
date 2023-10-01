@@ -1,8 +1,24 @@
+%
+% ----------------------------- HPPC TEST ---------------------------------
+% -------------------------------------------------------------------------
+
+% This script is used to perform the Hybrid Pulse Power Characterization 
+% test on a specific battery configuration, which can be a single cell or a
+% block of multiple cells (3 in series and 4 in parallel). Data are logged
+% externally in a .txt file with a frequency of 10 Hz and all significant
+% parameters and results are saved in a .mat file, which will be then 
+% loaded to perform battery characterization/parameters identiication
+
+% This script takes inspiration from the HPPC test procedure of 
+% <https://www.osti.gov/biblio/1186745>
+
+%% Initialization
+
 clear all;
 close all;
 clc;
 
-% Add files and folders to Matlab path
+% Add all files from current folder to Matlab path
 addpath(genpath(pwd))
 
 %% Estabilish connection with the instrument
@@ -19,11 +35,31 @@ else
     error('Failed to connect to the instrument.');
 end
 
-%% Data
+%% Let the user choose which battery configuration to test
 
-% Battery configuration                 
-parallel = 4;                                                   % Number of parallels
-series = 3;                                                     % Number of series
+BatteryList = {'SingleCell', 'Block'};
+Battery = listdlg('PromptString', {'For which type of battery do you want to fit the data?', ''}, ...
+               'ListString', BatteryList, 'SelectionMode', 'single'                                  );
+
+% Check if a battery configuration has been selected
+if ~isempty(Battery)
+    selectedVariable = BatteryList{Battery};
+else
+    fprintf('No battery configuration selected.\n');
+end
+
+% Battery configuration
+if strcmp(selectedVariable, 'SingleCell') == 1
+    parallel = 1;               % Number of parallels          
+    series = 1;                 % Number of series
+    Capacity = 4;               % [Ah]
+elseif strcmp(selectedVariable, 'Block') == 1
+    parallel = 4;               % Number of parallels          
+    series = 3;                 % Number of series
+    Capacity = 4 * parallel;    % [Ah]
+end
+
+%% Data                                                    
 
 Vlimreal = 4.2 * series;                                        % [V] Voltage upper limit when discharging
 Vliminstr = 5 * series;                                         % [V] Voltage limit during CC - for the instrument
@@ -31,20 +67,19 @@ Vlimlow = 2.5 * series;                                         % [V] Voltage lo
 Ilev = 2 * parallel;                                            % [A] Current level
 Ts = 0.1;                                                       % [s] Sampling time
 SOC = 100;                                                      % Actual SoC measured by Coulomb counting method
-capacity = 4 * parallel;                                        % [Ah] Nominal Capacity 
-curr_discharge_pulse = -(1/2) * capacity;                       % [A] 2/3C current for discharge pulse
-curr_charge_pulse = (1/2) * capacity;                           % [A] 2/3C current for charge pulse
-dischargeC3 = -((5/16) * capacity);                             % [A] C/3 current for SOC discharge
+curr_discharge_pulse = -(1/2) * Capacity;                       % [A] 2/3C current for discharge pulse
+curr_charge_pulse = (1/2) * Capacity;                           % [A] 2/3C current for charge pulse
+dischargeC3 = -(Capacity/3);                                    % [A] C/3 current for SOC discharge
 t_discharge_pulse = 30;                                         % [s] Discharge pulse time
 t_charge_pulse = 30;                                            % [s] Charge pulse time -- default: 10 sec
 t_rest_pulse = 40;                                              % [s] Rest period between pulses
 disCapStep = 0.1;                                               % 10% SOC decrement
-tDisCycle = ((capacity * 3600 * disCapStep)/abs(dischargeC3));  % [min] Discharge cycle time
+tDisCycle = ((Capacity * 3600 * disCapStep)/abs(dischargeC3));  % [min] Discharge cycle time
 Rest = 10 * 60;                                                 % [min] Rest period between discharge cycles
 Rest100SOC = 10 * 60;                                           % [min] Rest period at full capacity
 cycle = 0;                                                      % Variable to keep track of cycles number
 
-%% Initialization
+%% Initialize the instrument
 
 % Select data format
 writeline(visaObj, ":FORM:DATA ASCii");
@@ -69,13 +104,15 @@ writeline(visaObj, ':INITiate:IMMediate:ELOG');
 
 disp('Initialization done.');
 
-%% HPPC test
+%% Open the .txt file where to log test data
 
-% This script takes inspiration from the HPPC test procedure of 
-% <https://www.osti.gov/biblio/1186745>
+% Create the output subfolder if it doesn't exist
+if ~exist('output', 'dir')
+    mkdir('output');
+end
 
 % Define the name of the file where to log data
-FileName = "HPPCTestDataLog.txt";
+FileName = "output/HPPCTestDataLog.txt";
 % Open the file where to log data in writing mode; create the file if not 
 % present
 newFileID = fopen(FileName, 'w+');
@@ -84,6 +121,8 @@ open(FileName);
 
 % Wait some time before discharging
 pause(1);
+
+%% HPPC test
 
 %%%%%%%%%%%%%%%%%%%%%%%%% Rest period at 100% SoC %%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -439,7 +478,7 @@ end
 % Abort the elog system
 writeline(visaObj, ':ABORt:ELOG');
 
-%%
+%% Data processing
 
 % Close the file where data are logged
 fclose(newFileID);
@@ -475,18 +514,17 @@ xlabel('time [s]');
 ylabel('Voltage [V]');
 
 % Create struct of data
-HPPCMeas.Time = Time;           % Time vector
-HPPCMeas.Current = curr;        % Current vector
-HPPCMeas.Voltage = volt;        % Voltage vector
-HPPCMeas.SoC = SoC;             % State-of-Charge vector
-
-% Create the output subfolder if it doesn't exist
-if ~exist('output', 'dir')
-    mkdir('output');
-end
+HPPCMeas.Time = Time;                                   % [s]  Time vector
+HPPCMeas.Current = curr;                                % [A]  Current vector
+HPPCMeas.Voltage = volt;                                % [V]  Voltage vector
+HPPCMeas.SoC = SoC;                                     % [%]  State-of-Charge vector
+HPPCMeas.Capacity = Capacity;                           % [Ah] Capacity
+HPPCMeas.curr_charge_pulse = curr_charge_pulse;         % [A]  Current during charge pulse
+HPPCMeas.curr_discharge_pulse = curr_discharge_pulse;   % [A]  Current during discharge pulse
+HPPCMeas.dischargeC3 = dischargeC3;                     % [A]  Current during SOC decrease
 
 % Get the current date as a formatted string (YYYYMMDD format)
 currentDateStr = datestr(now, 'yyyymmdd_HHMM');
 
 % Save the variable to the .mat file with the date-appended filename
-save(fullfile('output',[sprintf('Test_%s', currentDateStr),'.mat'] ), 'HPPCMeas');
+save(fullfile('output', [sprintf('Test_%s_%s', BatteryList{Battery}, currentDateStr),'.mat'] ), 'HPPCMeas');
