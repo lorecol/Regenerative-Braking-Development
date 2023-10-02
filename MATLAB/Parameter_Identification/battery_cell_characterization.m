@@ -179,12 +179,14 @@ end
 if strcmp(selectedVariable, VERIFY{1}) == 1
     % Load the drive profile. As default is loaded example one 
     % (src/loadProfiles/BatteryCellCharacterizationForBEV_Ivst.mat)
-    driveProfile = load('src/loadProfiles/batt_BatteryCellCharacterizationForBEV_Ivst.mat');
-    maxCurrentPack = max(driveProfile.ans.Data);
-    minCurrentPack = min(driveProfile.ans.Data);
+    driveProfile = load('src/loadProfiles/batt_BatteryCellCharacterizationForBEV_end_009.mat');
+    % Extract the name of the fields of the structure
+    fields = fieldnames(driveProfile);
+    maxCurrentPack = max(driveProfile.(fields{1}).Data);
+    minCurrentPack = min(driveProfile.(fields{1}).Data);
     
     figure('Name','Drive profile');
-    plot(driveProfile.ans.Time,driveProfile.ans.Data)
+    plot(driveProfile.(fields{1}).Time,driveProfile.(fields{1}).Data)
     title('Drive profile data')
     xlabel('Time (s)');
     ylabel('Current (A)');
