@@ -1,14 +1,27 @@
-%% Clear all
-clc; clear all; close all;
+%
+% -------------------- IMPORT DATA FROM .CSV FILE  ------------------------
+% -------------------------------------------------------------------------
 
-%% Import data from text file
+% This script is used to import telemetry data from a .csv file. It allows
+% the user to choose which file to import the data from. After the data are
+% loaded succesfully, they are plotted in time.
 
-% Script for importing data from the following HV_VOLTAGE file:
-[file,path] = uigetfile('*.csv');
+%% Initialization
+
+clear all; 
+close all;
+clc; 
+
+%% Import data from .csv file
+
+% Current and voltage data can be found in parsed/primary folder
+
+% Choose the file to import data from
+[file,path] = uigetfile('endurances/*.csv');
 if isequal(file,0)
    disp('User selected Cancel');
 else
-   disp(['User selected ', fullfile(path,file)]);
+   disp(['Selected file: ', fullfile(path,file)]);
 end
 
 %% Set up the Import Options and import the data
@@ -18,21 +31,44 @@ opts = detectImportOptions(fullfile(path,file));
 opts.PreserveVariableNames=true;
 
 % Import the data
-DATAFILE = readtable(fullfile(path,file), opts);
+data = readtable(fullfile(path,file), opts);
 
 % Clear temporary variables
 clear opts
 
+%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%% Convert time from epochtime to human readable time %%%%%%%%%%%%
+
+% % Extract time array
+% t = uint64(data.("_timestamp"));
+
+% % Conversion
+% d = datetime(t, 'ConvertFrom', 'epochtime', 'Epoch', 1e6,...
+%              'Format', 'dd-MMM-yyyy HH:mm:ss.SSSSSSSSS'     );
+% s = second(d);
+% m = minute(d);
+% % Convert time array to minute + seconds format to better read it
+% t = m + s/100; 
+
+% % Clear variables that are no more useful
+% clear d s m 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 %% Plot data
 
-% Automatic create a figure with a series of subplot. Assuming that the first column is the time
-figure; clf; hold on
+% Create a figure with a series of subplots of data stored in the selected 
+% .csv file
+figure; clf; hold on;
 sgtitle(regexprep(file, '_',' '));
-for i=1:(numel(DATAFILE.Properties.VariableNames)-1)
-    subplot(2,2,i)
-    plot(DATAFILE.(DATAFILE.Properties.VariableNames{1}),  DATAFILE.(DATAFILE.Properties.VariableNames{i+1}) )
-    xlabel('Time')
-    ylabel(regexprep(DATAFILE.Properties.VariableNames{i+1}, '_', ' '))  % Convert underscore '_' to
-end
-hold off
 
+for i=1:(numel(data.Properties.VariableNames) - 1)
+
+    subplot(2, 2, i);
+    plot((data.(data.Properties.VariableNames{1}))/1000000, ...
+          data.(data.Properties.VariableNames{i + 1})          );
+    xlabel('Time [s]');
+    ylabel(regexprep(data.Properties.VariableNames{i + 1}, '_', ' '));
+
+end
+hold off;
