@@ -13,33 +13,37 @@ close all;
 clc; 
 
 % Add telemetry data to Matlab path
-addpath(genpath("endurances"));
+addpath(genpath("TelemetryData_endurances"));
 
 %% Import data from .csv file
 
 % Current and voltage data can be found in parsed/primary folder
 
 % Choose the file to import data from
-[file,path] = uigetfile('endurances/end_009/parsed/primary/*.csv');
+[file,path] = uigetfile('TelemetryData_endurances/end_009/parsed/primary/*.csv', ...
+                        'MultiSelect', 'on');
 
 % Check if the file was succesfully loaded
 if isequal(file, 0)
-   disp('User selected Cancel');
+   fprintf('User selected Cancel\n');
 else
-   disp(['Selected file: ', fullfile(path, file)]);
+   fprintf('Selected files: %s and %s\n', file{1}, file{2});
 end
 
 %% Set up the Import Options and import the data
 
 % Automatic detect import options
-opts = detectImportOptions(fullfile(path, file));
-opts.PreserveVariableNames = true;
+opts1 = detectImportOptions(fullfile(path, file{1}));
+opts1.PreserveVariableNames = true;
+opts2 = detectImportOptions(fullfile(path, file{2}));
+opts2.PreserveVariableNames = true;
 
 % Import the data
-data = readtable(fullfile(path, file), opts);
+data1 = readtable(fullfile(path, file{1}), opts1);
+data2 = readtable(fullfile(path, file{2}), opts2);
 
 % Clear temporary variables
-clear opts
+clear opts1 opts2;
 
 %%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -64,16 +68,32 @@ clear opts
 
 % Create a figure with a series of subplots of data stored in the selected 
 % .csv file
+% - Data 1
 figure; clf; hold on;
 sgtitle(regexprep(file, '_', ' '));
 
-for i=1:(numel(data.Properties.VariableNames) - 1)
+for i = 1:(numel(data1.Properties.VariableNames) - 1)
 
     subplot(2, 2, i);
-    plot((data.(data.Properties.VariableNames{1}))/1000000, ...
-          data.(data.Properties.VariableNames{i + 1})          );
+    plot((data1.(data1.Properties.VariableNames{1}))/1000000, ...
+          data1.(data1.Properties.VariableNames{i + 1})          );
     xlabel('Time [s]');
-    ylabel(regexprep(data.Properties.VariableNames{i + 1}, '_', ' '));
+    ylabel(regexprep(data1.Properties.VariableNames{i + 1}, '_', ' '));
+
+end
+hold off;
+
+% - Data 2
+figure; clf; hold on;
+sgtitle(regexprep(file, '_', ' '));
+
+for i = 1:(numel(data1.Properties.VariableNames) - 1)
+
+    subplot(2, 2, i);
+    plot((data2.(data2.Properties.VariableNames{1}))/1000000, ...
+          data2.(data2.Properties.VariableNames{i + 1})          );
+    xlabel('Time [s]');
+    ylabel(regexprep(data2.Properties.VariableNames{i + 1}, '_', ' '));
 
 end
 hold off;
