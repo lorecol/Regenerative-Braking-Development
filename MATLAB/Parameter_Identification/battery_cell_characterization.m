@@ -123,7 +123,7 @@ numRCpairs = 2;
 initialGuess_RC = [0.1 10 0.1 10]; 
 
 % Perform data fitting
-result = batt_BatteryCellCharacterization.ParameterEstimationLUTbattery(...
+result = BatteryCellCharacterization.ParameterEstimationLUTbattery(     ...
                                      [time, current, voltage],          ...
                                      cell_prop,                         ...
                                      hppc_protocol,                     ...
@@ -158,7 +158,7 @@ currentDateStr = datestr(now, 'yyyymmdd_HHMM');
 config = [num2str(series),'s', num2str(parallels),'p','_', num2str(numRCpairs),'RC'];
 
 % Save the variable to the .mat file with the date-appended filename
-save(fullfile('output',[sprintf('BatteryCharacterizationResults_%s_%s',config, currentDateStr),'.mat'] ), 'battParameters');
+save(fullfile('output',[sprintf('batt_BatteryCharacterizationResults_%s_%s',config, currentDateStr),'.mat'] ), 'battParameters');
 
 %% Verify Parameters with Drive Profile
 
@@ -179,7 +179,7 @@ end
 if strcmp(selectedVariable, VERIFY{1}) == 1
     % Load the drive profile. As default is loaded example one 
     % (src/loadProfiles/BatteryCellCharacterizationForBEV_Ivst.mat)
-    driveProfile = load('src/loadProfiles/BatteryCellCharacterizationForBEV_Ivst.mat');
+    driveProfile = load('src/loadProfiles/batt_BatteryCellCharacterizationForBEV_Ivst.mat');
     maxCurrentPack = max(driveProfile.ans.Data);
     minCurrentPack = min(driveProfile.ans.Data);
     
@@ -191,7 +191,7 @@ if strcmp(selectedVariable, VERIFY{1}) == 1
     
     % Run the CellCharacterizationVerify SLX file to compare the original 
     % and the parameterized cells.
-    verifyRes = sim('src/CellCharacterizationVerify.slx');
+    verifyRes = sim('src/CellCharacterizationVerifyR2022b.slx');
     resDriveProfile = verifyRes.CellCharacterization_DriveProfile.extractTimetable;
     
     % Plot results
