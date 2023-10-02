@@ -42,6 +42,14 @@ opts2.PreserveVariableNames = true;
 data1 = readtable(fullfile(path, file{1}), opts1);
 data2 = readtable(fullfile(path, file{2}), opts2);
 
+% Create timeseries of data
+timeseries1 = timeseries(data1.current, (data1.("_timestamp"))/1000000);
+timeseries2 = timeseries(data2.pack_voltage, (data2.("_timestamp"))/1000000);
+
+% Save timeseries in a nested structure
+% driveProfile = struct('ans', timeseries1);
+save('../Parameter_Identification/src/loadProfiles/batt_BatteryCellCharacterizationForBEV_end_009.mat', 'timeseries1');
+
 % Clear temporary variables
 clear opts1 opts2;
 
