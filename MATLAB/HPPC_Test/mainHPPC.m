@@ -14,8 +14,8 @@
 
 %% Initialization
 
-clear all;
 close all;
+clear all;
 clc;
 
 % Add all files from current folder to Matlab path
@@ -56,7 +56,7 @@ if strcmp(selectedVariable, 'SingleCell') == 1
 elseif strcmp(selectedVariable, 'Block') == 1
     parallel = 4;               % Number of parallels          
     series = 3;                 % Number of series
-    Capacity = 4 * parallel;    % [Ah]
+    Capacity = 14;              % [Ah]
 end
 
 %% Data                                                    
@@ -67,16 +67,16 @@ Vlimlow = 2.5 * series;                                         % [V] Voltage lo
 Ilev = 2 * parallel;                                            % [A] Current level
 Ts = 0.1;                                                       % [s] Sampling time
 SOC = 100;                                                      % Actual SoC measured by Coulomb counting method
-curr_discharge_pulse = -(1/2) * Capacity;                       % [A] 2/3C current for discharge pulse
-curr_charge_pulse = (1/2) * Capacity;                           % [A] 2/3C current for charge pulse
-dischargeC3 = -(Capacity/3);                                    % [A] C/3 current for SOC discharge
+curr_discharge_pulse = -round((1/2) * Capacity,2);              % [A] 1/2C current for discharge pulse
+curr_charge_pulse = round((1/2) * Capacity,2);                  % [A] 1/2C current for charge pulse
+dischargeC3 = -round((Capacity/3),2);                           % [A] C/3 current for SOC discharge
 t_discharge_pulse = 30;                                         % [s] Discharge pulse time
 t_charge_pulse = 30;                                            % [s] Charge pulse time -- default: 10 sec
 t_rest_pulse = 40;                                              % [s] Rest period between pulses
 disCapStep = 0.1;                                               % 10% SOC decrement
 tDisCycle = ((Capacity * 3600 * disCapStep)/abs(dischargeC3));  % [min] Discharge cycle time
-Rest = 10 * 60;                                                 % [min] Rest period between discharge cycles
-Rest100SOC = 10 * 60;                                           % [min] Rest period at full capacity
+Rest = 10 * 60;                                                 % [s] Rest period between discharge cycles
+Rest100SOC = 5 * 60;                                            % [s] Rest period at full capacity
 cycle = 0;                                                      % Variable to keep track of cycles number
 
 %% Initialize the instrument
@@ -106,16 +106,20 @@ disp('Initialization done.');
 
 %% Open the .txt file where to log test data
 
-% Create the output subfolder if it doesn't exist
-if ~exist('output', 'dir')
-    mkdir('output');
-end
-
 % Get the current date as a formatted string (YYYYMMDD format)
 currentDateStr = datestr(now, 'yyyymmdd_HHMM');
 
+% Create the output folder and the Test subfolder if it doesn't exist
+subdir = sprintf('Test_%s_%s', BatteryList{Battery}, currentDateStr);
+if ~exist('output', 'dir')
+    mkdir('output');
+    mkdir(sprintf('output/%s',subdir));
+else 
+    mkdir(sprintf('output/%s', subdir));
+end
+
 % Define the name of the file where to log data
-FileName = sprintf("output/Test_%s_DataLog_%s.txt", BatteryList{Battery}, currentDateStr);
+FileName = sprintf("output/%s/Test_%s_DataLog_%s.txt",subdir, BatteryList{Battery}, currentDateStr);
 % Open the file where to log data in writing mode; create the file if not 
 % present
 newFileID = fopen(FileName, 'w+');
@@ -174,7 +178,7 @@ while true
 
     %%%%%%%%%%%%%%%%%%%%%%%%%% Discharge pulse %%%%%%%%%%%%%%%%%%%%%%%%%%%%
     
-    % Discharge 1/3C
+    % Discharge 1/2C
     fprintf("      Impulsive discharge for %g sec\n", t_discharge_pulse);
     
     % Set the power supply to current priority mode
@@ -260,7 +264,7 @@ while true
 
     %%%%%%%%%%%%%%%%%%%%%%%%%%%% Charge pulse %%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-    % Charge 1/3C
+    % Charge 1/2C
     fprintf("      Impulsive charge for %g sec\n", t_charge_pulse);
 
     % Set the power supply to current priority mode
@@ -346,7 +350,7 @@ while true
     
     %%%%%%%%%%%%%%%%%%%%%%%%%% Discharge cycle %%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-    % Discharge C/4 to reach the next SoC value
+    % Discharge C/3 to reach the next SoC value
     fprintf("      Discharge %g %% of the State of Charge\n", (1/disCapStep));
 
     % Set the power supply to current priority mode
@@ -392,7 +396,7 @@ while true
     writeline(visaObj, ':INITiate:IMMediate:ELOG');
 
     % Update SoC after discharge cycle and print it
-    [SOC] = calcSOC(SOC, capacity, dischargeC3, tDisCycle);
+    [SOC] = calcSOC(SOC, Capacity, dischargeC3, tDisCycle);
     fprintf("        SoC: %g\n", SOC);
 
     % Exit the main loop if SoC reaches zero or if under-voltage is reached
@@ -525,8 +529,8 @@ HPPCMeas.Capacity = Capacity;                           % [Ah] Capacity
 HPPCMeas.curr_charge_pulse = curr_charge_pulse;         % [A]  Current during charge pulse
 HPPCMeas.curr_discharge_pulse = curr_discharge_pulse;   % [A]  Current during discharge pulse
 HPPCMeas.dischargeC3 = dischargeC3;                     % [A]  Current during SOC decrease
-HPPCMeas.parallels = parallels;                         % Number of parallels in battery configuration
+HPPCMeas.parallels = parallel;                          % Number of parallels in battery configuration
 HPPCMeas.series = series;                               % Number of series in battery configuration
 
 % Save the variable to the .mat file with the date-appended filename
-save(fullfile('output', [sprintf('Test_%s_%s', BatteryList{Battery}, currentDateStr),'.mat'] ), 'HPPCMeas');
+save(fullfile(sprintf('output/%s',subdir), [sprintf('Test_%s_%s', BatteryList{Battery}, currentDateStr),'.mat'] ), 'HPPCMeas');
