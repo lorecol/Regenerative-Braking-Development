@@ -22,7 +22,7 @@
 %% Initialization
 
 % Clear and close
-clc; clear all; close all;
+close all; clear all; clc;
 
 % Add all files in current folder to Matlab path
 addpath(genpath(pwd))
@@ -30,10 +30,11 @@ addpath(genpath(pwd))
 %% Loading data from HPPC test
 
 % Let the user choose a .mat file where HPPC data are stored
+fprintf('Select an HPPC .mat file \n');
 [file, path] = uigetfile('../HPPC_Test/output/*.mat');
 % Check file selection
 if isequal(file, 0)
-   disp('No file has been selected! Please select a file.');
+   error('No file has been selected! Please select a file.');
 else
    disp(['Selected file: ', fullfile(path, file)]);
 end
@@ -54,11 +55,11 @@ clear HPPCMeas path file;
 
 % Change range if needed
 current = data.Current;         % Current 
-% current = current(1:157000);
+current = current(1:157000);
 voltage = data.Voltage;         % Voltage 
-% voltage = voltage(1:157000);
+voltage = voltage(1:157000);
 time = data.Time;               % Time 
-% time = time(1:157000);
+time = time(1:157000);
 
 % SOC
 SOC = data.SoC;
@@ -123,7 +124,7 @@ numRCpairs = 2;
 initialGuess_RC = [0.1 10 0.1 10]; 
 
 % Perform data fitting
-result = BatteryCellCharacterization.ParameterEstimationLUTbattery(     ...
+result = batt_BatteryCellCharacterization.ParameterEstimationLUTbattery(     ...
                                      [time, current, voltage],          ...
                                      cell_prop,                         ...
                                      hppc_protocol,                     ...
@@ -161,6 +162,11 @@ config = [num2str(series),'s', num2str(parallels),'p','_', num2str(numRCpairs),'
 save(fullfile('output',[sprintf('batt_BatteryCharacterizationResults_%s_%s',config, currentDateStr),'.mat'] ), 'battParameters');
 
 %% Verify Parameters with Drive Profile
+%close all; clear all; clc;
+
+% This part is use to verify the parameters found with the original pack
+% telemetry datas. Some variable have to be changed depending on the
+% battery load profile and Simulink model
 
 VERIFY = {'Yes', 'No'};
 DO_VERIFY = listdlg('PromptString', {'Do you want to validate the resulting model? Y/N:', ''}, ...
@@ -170,30 +176,92 @@ DO_VERIFY = listdlg('PromptString', {'Do you want to validate the resulting mode
 if ~isempty(DO_VERIFY)
     selectedVariable = VERIFY{DO_VERIFY};
 else
-    fprintf('No answer selected.\n');
+    error('No answer selected.\n');
 end
 
 % The CellCharacterizationVerify.slx model uses a drive profile to compare 
 % the parameterized battery against the original one.
-
 if strcmp(selectedVariable, VERIFY{1}) == 1
-    % Load the drive profile. As default is loaded example one 
-    % (src/loadProfiles/BatteryCellCharacterizationForBEV_Ivst.mat)
-    driveProfile = load('src/loadProfiles/batt_BatteryCellCharacterizationForBEV_end_009.mat');
-    % Extract the name of the fields of the structure
-    fields = fieldnames(driveProfile);
-    maxCurrentPack = max(driveProfile.(fields{1}).Data);
-    minCurrentPack = min(driveProfile.(fields{1}).Data);
+    fprintf('Verification started... \n');
     
+    % Load the CURRENT profile from telemetry
+    fprintf('Load the CURRENT profile \n');
+    [curr_profileName, curr_path_to_profile] = uigetfile('src/loadProfiles/*.mat');
+    % Check file selection
+    if isequal(curr_profileName, 0)
+       error('No file has been selected! Please select a file.');
+    else
+       disp(['  Selected file: ', fullfile(curr_path_to_profile, curr_profileName)]);
+    end
+    CURR_PROFILE_PATH = fullfile(curr_path_to_profile, curr_profileName);
+    curr_Profile = load(CURR_PROFILE_PATH);
+    % Extract the name of the fields of the structure
+    fields = fieldnames(curr_Profile);
+    maxCurrentPack = max(curr_Profile.(fields{1}).Data);
+    minCurrentPack = min(curr_Profile.(fields{1}).Data);
+
+    % Load the VOLTAGE profile from telemetry
+    fprintf('Load the VOLTAGE profile \n');
+    % Load the Current profile.
+    [volt_profileName, volt_path_to_profile] = uigetfile('src/loadProfiles/*.mat');
+    % Check file selection
+    if isequal(volt_profileName, 0)
+       error('No file has been selected! Please select a file.');
+    else
+       disp(['  Selected file: ', fullfile(volt_path_to_profile, volt_profileName)]);
+    end
+    VOLT_PROFILE_PATH= fullfile(volt_path_to_profile, volt_profileName);
+    volt_Profile = load(VOLT_PROFILE_PATH);
+    % Extract the name of the fields of the structure
+    volt_fields = fieldnames(volt_Profile);
+    maxVoltagePack = max(volt_Profile.(fields{1}).Data);
+    minVoltagePack = min(volt_Profile.(fields{1}).Data);
+    
+    % Plot the Current and Voltage Profile
     figure('Name','Drive profile');
-    plot(driveProfile.(fields{1}).Time,driveProfile.(fields{1}).Data)
-    title('Drive profile data')
+    subplot(2,1,1)
+    plot(curr_Profile.(fields{1}).Time, curr_Profile.(fields{1}).Data)
+    title('Current profile data')
     xlabel('Time (s)');
     ylabel('Current (A)');
+    subplot(2,1,2)
+    plot(volt_Profile.(fields{1}).Time, volt_Profile.(fields{1}).Data)
+    title('Voltage profile data')
+    xlabel('Time (s)');
+    ylabel('Voltage (A)');
     
     % Run the CellCharacterizationVerify SLX file to compare the original 
-    % and the parameterized cells.
-    verifyRes = sim('src/CellCharacterizationVerifyR2022b.slx');
+    % and the parameterized cells
+    fprintf('Select the Simulink battery model \n ')
+    % Load the current profile.
+    [simName, path_to_simName] = uigetfile('src/loadProfiles/*.slx');
+    % Check file selection
+    if isequal(simName, 0)
+       error('No file has been selected! Please select a file.');
+    else
+       disp(['Selected file: ', fullfile(path_to_simName, simName)]);
+    end
+    verifyResPath= fullfile(path_to_simName, simName);
+    load_system(verifyResPath);
+    
+    % Changing Parameters accordingly
+    % Change the initialization function
+    new_initfcn = [...
+        'cellData=load(''batt_BatteryCharacterizationResults_3s4p_2RC_20230929_1552.mat'');',...
+        'fitData = cellData.battParameters{1,3};',...
+        'cellCapacity = cellData.battParameters{1,2};',...
+        'run(''CellCharacterizationOrigCell.m'');'];
+    set_param(simName, 'InitFcn', new_initfcn);
+    disp('InitFcn function updated.');
+    % Change the 'Voltage_Profile' block
+    set_param([simName,'/Current_Profile'], 'FileName', CURR_PROFILE_PATH);
+    set_param([simName,'/Voltage_Profile'], 'FileName', VOLT_PROFILE_PATH)
+    disp('LoadProfile updated.');
+    % Saving the system
+    save_system(verifyResPath);
+
+    % Start Simulating the system
+    verifyRes = sim(verifyResPath);
     resDriveProfile = verifyRes.CellCharacterization_DriveProfile.extractTimetable;
     
     % Plot results
