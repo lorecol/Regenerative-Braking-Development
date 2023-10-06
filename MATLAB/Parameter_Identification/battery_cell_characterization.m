@@ -182,6 +182,7 @@ end
 % The CellCharacterizationVerify.slx model uses a drive profile to compare 
 % the parameterized battery against the original one.
 if strcmp(selectedVariable, VERIFY{1}) == 1
+    close all;clear all; clc;
     fprintf('Verification started... \n');
     
     % Load the CURRENT profile from telemetry
@@ -234,7 +235,7 @@ if strcmp(selectedVariable, VERIFY{1}) == 1
     % and the parameterized cells
     fprintf('Select the Simulink battery model \n ')
     % Load the current profile.
-    [simName, path_to_simName] = uigetfile('src/loadProfiles/*.slx');
+    [simName, path_to_simName] = uigetfile('src/batteryModel/*.slx');
     % Check file selection
     if isequal(simName, 0)
        error('No file has been selected! Please select a file.');
@@ -249,29 +250,29 @@ if strcmp(selectedVariable, VERIFY{1}) == 1
     new_initfcn = [...
         'cellData=load(''batt_BatteryCharacterizationResults_3s4p_2RC_20230929_1552.mat'');',...
         'fitData = cellData.battParameters{1,3};',...
-        'cellCapacity = cellData.battParameters{1,2};',...
-        'run(''CellCharacterizationOrigCell.m'');'];
-    set_param(simName, 'InitFcn', new_initfcn);
+        'cellCapacity = cellData.battParameters{1,2};'];
+    [simpathstr,simname,simext] = fileparts(simName);
+    set_param(simname, 'InitFcn', new_initfcn);
     disp('InitFcn function updated.');
     % Change the 'Voltage_Profile' block
-    set_param([simName,'/Current_Profile'], 'FileName', CURR_PROFILE_PATH);
-    set_param([simName,'/Voltage_Profile'], 'FileName', VOLT_PROFILE_PATH)
+    set_param([simname,'/Current_Profile'], 'FileName', CURR_PROFILE_PATH);
+    set_param([simname,'/Voltage_Profile'], 'FileName', VOLT_PROFILE_PATH);
     disp('LoadProfile updated.');
     % Saving the system
     save_system(verifyResPath);
 
     % Start Simulating the system
     verifyRes = sim(verifyResPath);
-    resDriveProfile = verifyRes.CellCharacterization_DriveProfile.extractTimetable;
+    resDriveProfile = verifyRes.BattCharacterization_DriveProfile.extractTimetable;
     
     % Plot results
     figure('Name','Error in voltage prediction');
-    plot(resDriveProfile.Time,resDriveProfile.V_err*1000);
+    plot(resDriveProfile.Time,resDriveProfile.V_error);
     title('Voltage Error (mV) Between Original and Parameterized Cell')
     xlabel('Time (s)');
     ylabel('Voltage Error (mV)');
     figure('Name','Voltage profile for original and parameterized cell');
-    plot(resDriveProfile.Time,resDriveProfile.V);
+    plot(resDriveProfile.Time,resDriveProfile.V_computed);
     title('Voltage (V) for Original and Parameterized Cell')
     xlabel('Time (s)');
     ylabel('Voltage (V)');
