@@ -55,11 +55,11 @@ clear HPPCMeas path file;
 
 % Change range if needed
 current = data.Current;         % Current 
-current = current(1:157000);
+%current = current(1:157000);
 voltage = data.Voltage;         % Voltage 
-voltage = voltage(1:157000);
+%voltage = voltage(1:157000);
 time = data.Time;               % Time 
-time = time(1:157000);
+%time = time(1:157000);
 
 % SOC
 SOC = data.SoC;
