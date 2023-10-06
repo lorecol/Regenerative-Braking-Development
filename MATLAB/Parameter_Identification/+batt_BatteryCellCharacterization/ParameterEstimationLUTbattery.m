@@ -348,6 +348,9 @@ classdef (Sealed) ParameterEstimationLUTbattery
         end
         
         function result = exportResultsForLib(obj,userSOCpoints)
+            if ~isrow(userSOCpoints)
+                userSOCpoints = userSOCpoints';
+            end
             nChargePulses = obj.HPPCpulseSequence{4};
             nDischargePulses = obj.HPPCpulseSequence{3};
             if size(userSOCpoints,1) ~= 1

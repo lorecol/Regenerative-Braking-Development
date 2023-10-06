@@ -146,7 +146,7 @@ verifyDataFit(result, fitDataEverySOCval, 1);
 %% Save parameters resulting from fitting procedure
 
 % Saving parameters in a variable
-battParameters = exportResultsForLib(result, SOC');
+battParameters = exportResultsForLib(result, SOC);
 
 % Saving parameters in a file
 % Create the output subfolder if it doesn't exist
@@ -162,7 +162,6 @@ config = [num2str(series),'s', num2str(parallels),'p','_', num2str(numRCpairs),'
 save(fullfile('output',[sprintf('batt_BatteryCharacterizationResults_%s_%s',config, currentDateStr),'.mat'] ), 'battParameters');
 
 %% Verify Parameters with Drive Profile
-%close all; clear all; clc;
 
 % This part is use to verify the parameters found with the original pack
 % telemetry datas. Some variable have to be changed depending on the
@@ -182,7 +181,7 @@ end
 % The CellCharacterizationVerify.slx model uses a drive profile to compare 
 % the parameterized battery against the original one.
 if strcmp(selectedVariable, VERIFY{1}) == 1
-    close all;clear all; clc;
+
     fprintf('Verification started... \n');
     
     % Load the CURRENT profile from telemetry
@@ -203,7 +202,6 @@ if strcmp(selectedVariable, VERIFY{1}) == 1
 
     % Load the VOLTAGE profile from telemetry
     fprintf('Load the VOLTAGE profile \n');
-    % Load the Current profile.
     [volt_profileName, volt_path_to_profile] = uigetfile('src/loadProfiles/*.mat');
     % Check file selection
     if isequal(volt_profileName, 0)
@@ -231,10 +229,9 @@ if strcmp(selectedVariable, VERIFY{1}) == 1
     xlabel('Time (s)');
     ylabel('Voltage (A)');
     
-    % Run the CellCharacterizationVerify SLX file to compare the original 
+    % Load the CellCharacterizationVerify SLX file to compare the original 
     % and the parameterized cells
     fprintf('Select the Simulink battery model \n ')
-    % Load the current profile.
     [simName, path_to_simName] = uigetfile('src/batteryModel/*.slx');
     % Check file selection
     if isequal(simName, 0)
@@ -246,15 +243,24 @@ if strcmp(selectedVariable, VERIFY{1}) == 1
     load_system(verifyResPath);
     
     % Changing Parameters accordingly
+    % Load the Battery Characterization results
+    fprintf('Select the Battery Characterization results \n ')
+    [charName, path_to_charName] = uigetfile('output/*.mat');
+    % Check file selection
+    if isequal(charName, 0)
+       error('No file has been selected! Please select a file.');
+    else
+       disp(['Selected file: ', fullfile(path_to_charName, charName)]);
+    end
     % Change the initialization function
     new_initfcn = [...
-        'cellData=load(''batt_BatteryCharacterizationResults_3s4p_2RC_20230929_1552.mat'');',...
+        sprintf('cellData=load(''%s'');', charName),...
         'fitData = cellData.battParameters{1,3};',...
         'cellCapacity = cellData.battParameters{1,2};'];
     [simpathstr,simname,simext] = fileparts(simName);
     set_param(simname, 'InitFcn', new_initfcn);
     disp('InitFcn function updated.');
-    % Change the 'Voltage_Profile' block
+    % Change the Profile blocks
     set_param([simname,'/Current_Profile'], 'FileName', CURR_PROFILE_PATH);
     set_param([simname,'/Voltage_Profile'], 'FileName', VOLT_PROFILE_PATH);
     disp('LoadProfile updated.');
