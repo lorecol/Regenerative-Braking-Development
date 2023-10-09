@@ -512,9 +512,10 @@ classdef (Sealed) ParameterEstimationLUTbattery
                 indxDischgPulseEnd = removeCloseIdx(indxDischgPulseEnd);
                 % Exlude all indexes smallest than the start index
                 indxDischgPulseEnd   = indxDischgPulseEnd(indxDischgPulseEnd > indxDischgPulseStart(1));
-%                 disp(['DEBUG: the indxDischgPulseEnd indexes are: ', num2str(indxDischgPulseEnd)])
-                indxDischgPulseMid   = indxDischgPulseStart + 1;
-                indxDischgRelaxStart = indxDischgPulseEnd + 1;
+                disp(['DEBUG: the indxDischgPulseEnd indexes are: ', num2str(indxDischgPulseEnd)])
+                indxDischgPulseMid   = indxDischgPulseStart + obj.k;
+                indxDischgRelaxStart = indxDischgPulseEnd + obj.k;
+                disp(['DEBUG: the indxDischgRelaxStart indexes are: ', num2str(indxDischgRelaxStart)])
             else
                 indxDischgPulseEnd = indxDischgPulseStart;
                 indxDischgPulseMid = indxDischgPulseStart;
@@ -560,9 +561,10 @@ classdef (Sealed) ParameterEstimationLUTbattery
                 % Remove too close indexes
                 indxChgPulseEnd = removeCloseIdx(indxChgPulseEnd);
                 indxChgPulseEnd   = indxChgPulseEnd(indxChgPulseEnd > indxChgPulseStart(1));
-%                 disp(['DEBUG: the indxChgPulseEnd indexes are: ', num2str(indxChgPulseEnd)])
-                indxChgPulseMid   = indxChgPulseStart + 1;
-                indxChgRelaxStart = indxChgPulseEnd + 1;
+                disp(['DEBUG: the indxChgPulseEnd indexes are: ', num2str(indxChgPulseEnd)])
+                indxChgPulseMid   = indxChgPulseStart + obj.k;
+                indxChgRelaxStart = indxChgPulseEnd + obj.k;
+                disp(['DEBUG: the indxChgRelaxStart indexes are: ', num2str(indxChgRelaxStart)])
             else
                 indxChgPulseEnd   = indxChgPulseStart;
                 indxChgPulseMid   = indxChgPulseStart;
@@ -687,6 +689,7 @@ classdef (Sealed) ParameterEstimationLUTbattery
             if nDischargePulses > 0
                 Vdischg_relaxStart = obj.InputTestData.V(obj.InputTestDataIndices{4});
                 Vdischg_pulseEnd = obj.InputTestData.V(obj.InputTestDataIndices{2});
+                
                 Idischg = obj.DischargePulseCurr;
                 R0_dischg = abs(Vdischg_relaxStart - Vdischg_pulseEnd) / Idischg;
                 SOC_dischg = obj.InputTestData.SOC(obj.InputTestDataIndices{4});
