@@ -55,8 +55,16 @@ varNames = data1.Properties.VariableNames;
 [indx,tf] = listdlg('ListString',varNames, 'SelectionMode','single', 'PromptString','Select a variable:');
 fprintf('   Selected variable: %s \n', string(varNames(indx)));
 
+y = data1.(string(varNames(indx)));
+timestamps = data1.(string(varNames(1)));
+x = (timestamps - timestamps(1) )/1e6;
+
 % Create timeseries of data
-timeseries1 = timeseries(data1.(string(varNames(indx))), (data1.(string(varNames(1))))/1000000);
+timeseries1 = timeseries(y(1:end),x(1:end));
+%====NOTE====
+% If the last values are NaN -> REMOVE THEM:
+% timeseries1 = timeseries(y(1:end-1),x(1:end-1));
+
 
 % Save timeseries in a nested structure
 % driveProfile = struct('ans', timeseries1);
