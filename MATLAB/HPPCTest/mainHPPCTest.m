@@ -473,7 +473,7 @@ while true
         end
 
     end
-
+    
     % Abort the elog system
     writeline(visaObj, ':ABORt:ELOG');
 
