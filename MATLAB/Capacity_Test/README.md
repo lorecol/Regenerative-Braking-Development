@@ -27,7 +27,7 @@ The capacity is computed by multiplying the discharge current (in Amps) by the t
 
 ## How to use
 - Connect the battery to the instrument.
-- [Connect the instrument to the PC](../../DOCS/Keysight%20regenerative%20power%20supply/Interface_Connections.pdf)
+- [Connect the instrument to the PC](../../DOCS/Keysight_regenerative_power_supply/Interface_Connections.pdf)
 - Run the Matlab script [mainCapacityTest.m](mainCapacityTest.m).
 - The script will show the result of capacity computation in `Ah` in the command window.
 - A .mat file is created in the output folder where the significant data and results are saved:
