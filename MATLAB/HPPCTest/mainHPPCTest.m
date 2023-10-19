@@ -262,7 +262,7 @@ while true
 
     % Initialize the elog system
     writeline(visaObj, ':INITiate:IMMediate:ELOG');
-
+    
     %%%%%%%%%%%%%%%%%%%%%%%%%%%% Charge pulse %%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
     % Charge 1/2C
@@ -406,7 +406,7 @@ while true
         % Disable the output
         writeline(visaObj, ':OUTPut OFF'); 
     
-        %%%%%%%%%%%%%%%%%%%%%%%%%%%% Rest  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        %%%%%%%%%%%%%%%%%%%%%%%%%%%% Rest %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     
         fprintf("      Rest %g sec before ending the test\n", Rest);
 
