@@ -1,8 +1,7 @@
-# HPPC TEST 
+# HPPC TEST
 
 ## Table of Contents
 - [General information](#general-information)
-- [Setup](#setup)
 - [How to use](#how-to-use)
 
 ## General information
@@ -26,16 +25,21 @@ The power supply used for the test is the [Keysight RP7963A](docs/RP7900_Regener
 
 TODO: Finish the description of the test with specifications and results and C-Rate definitions
 
-
-## Setup
-- Install the instruments [IO Libraries Suite version 2022 Update 2](https://www.keysight.com/it/en/lib/software-detail/computer-software/io-libraries-suite-downloads-2175637.html)
-- Use the program "Keysight Connection Expert" to connect to the power supply through LAN
-
-
 ## How to use
-- Connect through LAN to the power supply 
-- Excecute the matlab script [mainHPPC.m](mainHPPC.m) and follow the instructions on the command window
-- The script will save the voltage and current data in the folder "output"
+- Connect the battery to the instrument.
+- [Connect the instrument to the PC](../../DOCS/Keysight_regenerative_power_supply/Interface_Connections.pdf).
+- Run the Matlab script [mainHPPC.m](mainHPPC.m).
+- A .txt file is created in the output folder where current and voltage data is saved
+- A .mat file is created in the output folder where the significant data and results are saved:
+  - Time array (`s`)
+  - Current array (`A`)
+  - Voltage array (`V`)
+  - State-of-Charge array (`%`)
+  - Battery capacity (`Ah`)
+  - Current for charge pulse (`A`)
+  - Current for discharge pulse (`A`)
+  - Current for SoC discharge (`A`)
+  - Battery configuration: number of parallels and series
 
 
 ## Authors
