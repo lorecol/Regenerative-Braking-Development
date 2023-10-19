@@ -16,7 +16,7 @@ close all;
 clc;
 
 % Add all files from current folder to Matlab path
-addpath(genpath(pwd))
+addpath(genpath(pwd));
 
 %% Estabilish connection with the instrument
 
@@ -30,6 +30,30 @@ if strcmp(visaObj.Status, 'open')
     disp('Instrument connection established.');
 else
     error('Failed to connect to the instrument.');
+end
+
+%% Let the user choose which battery configuration to test
+
+BatteryList = {'SingleCell', 'Block'};
+Battery = listdlg('PromptString', {'For which type of battery do you want to test the capacity?', ''}, ...
+               'ListString', BatteryList, 'SelectionMode', 'single'                                       );
+
+% Check if a battery configuration has been selected
+if ~isempty(Battery)
+    selectedVariable = BatteryList{Battery};
+else
+    error('No battery configuration selected.');
+end
+
+% Battery configuration
+if strcmp(selectedVariable, 'SingleCell') == 1
+    parallel = 1;               % Number of parallels          
+    series = 1;                 % Number of series
+    disp('You are testing a single cell.');
+elseif strcmp(selectedVariable, 'Block') == 1
+    parallel = 4;               % Number of parallels          
+    series = 3;                 % Number of series
+    disp('You are testing a block - 3s4p configuration.');
 end
 
 %% Data
@@ -63,37 +87,13 @@ writeline(visaObj, ':INITiate:IMMediate:ELOG');
 
 disp('Instrument initialization done.');
 
-%% Let the user choose which battery configuration to test
-
-BatteryList = {'SingleCell', 'Block'};
-Battery = listdlg('PromptString', {'For which type of battery do you want to test the capacity?', ''}, ...
-               'ListString', BatteryList, 'SelectionMode', 'single'                                       );
-
-% Check if a battery configuration has been selected
-if ~isempty(Battery)
-    selectedVariable = BatteryList{Battery};
-else
-    error('No battery configuration selected.');
-end
-
-% Battery configuration
-if strcmp(selectedVariable, 'SingleCell') == 1
-    parallel = 1;               % Number of parallels          
-    series = 1;                 % Number of series
-    disp('You are testing a single cell.');
-elseif strcmp(selectedVariable, 'Block') == 1
-    parallel = 4;               % Number of parallels          
-    series = 3;                 % Number of series
-    disp('You are testing a block - 3s4p configuration.');
-end
-
 %% Open the .txt file where to log test data
 
 % Get the current date as a formatted string (YYYYMMDD format)
-currentDateStr = datestr(now, 'yyyymmdd_HHMM');
+currentDateStr = datestr(now, 'yyyymmdd');
 
 % Create the output folder and the test subfolder if they don't exist
-subdir = sprintf('Test_%s', BatteryList{Battery});
+subdir = sprintf('Test_%s_%s', BatteryList{Battery}, currentDateStr);
 if ~exist('output', 'dir')
     mkdir('output');
     mkdir(sprintf('output/%s', subdir));
@@ -102,7 +102,7 @@ else
 end
 
 % Define the name of the file where to log data
-FileName = sprintf("output/%s/Test_DataLog_%s.txt", subdir, currentDateStr);
+FileName = sprintf("output/%s/CapacityTest_DataLog.txt", subdir);
 % Open the file where to log data; create the file if not present
 newFileID = fopen(FileName, 'w+');
 % Open the visualisation of the file where to log data
@@ -163,4 +163,4 @@ CapacityMeas.TimeDischarge = TimerEnd;
 CapacityMeas.Capacity = BatteryCapacity;
 
 % Save the variable to the .mat file with the date-appended filename
-save(fullfile(sprintf('output/%s', subdir), [sprintf('Test_%s', currentDateStr), '.mat'] ), "CapacityMeas");
+save(fullfile(sprintf('output/%s', subdir), ['CapacityTest_Dataset', '.mat'] ), "CapacityMeas");
