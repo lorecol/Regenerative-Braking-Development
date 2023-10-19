@@ -1,4 +1,4 @@
-function CCCVcharge(visaObj, newFileID, Vliminstr, Vlimreal, Ilev, Ilimpos)
+function CCCVcharge(visaObj, newFileID, Vliminstr, Vlimreal, Ilev, Ilimpos, Ilim)
 
 %------------------------------
 % Set the operating mode to CC
@@ -89,7 +89,7 @@ while true
     fprintf(newFileID, "%g\n", data);
 
     % Exit condition --> voltage above the limit
-    if data(end - 1) < Ilimpos
+    if data(end - 1) < Ilim
         break;
     end
 

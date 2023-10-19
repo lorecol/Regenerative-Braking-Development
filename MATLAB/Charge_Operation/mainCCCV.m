@@ -73,6 +73,7 @@ Vliminstr = 5 * series;         % [V] Voltage limit during CC - for the instrume
 Vlimlow = 2.5 * series;         % [V] Voltage lower limit when discharging
 Ilev = 2 * parallel;            % [A] Current level
 Ilimpos = Ilev + 1;             % [A] Current limit during CV
+Ilim = 0.2 * parallel;          % [A] Current threshold during CV
 Ts = 0.1;                       % [s] Sampling time
 
 %% Initialize the instrument
@@ -126,7 +127,7 @@ pause(1);
 %% Perform CCCV charge
 
 % Function to perform full charge of the battery
-CCCVcharge(visaObj, newFileID, Vliminstr, Vlimreal, Ilev, Ilimpos);
+CCCVcharge(visaObj, newFileID, Vliminstr, Vlimreal, Ilev, Ilimpos, Ilim);
 
 %% Data processing
 
