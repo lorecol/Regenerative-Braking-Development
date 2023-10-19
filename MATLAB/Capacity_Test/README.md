@@ -33,7 +33,7 @@ The capacity is computed by multiplying the discharge current (in Amps) by the t
 - A .mat file is created in the output folder where the significant data and results are saved:
   - Data collected performing the test:
     - Time array (`s`)
-    - Current array in (`A`)
+    - Current array (`A`)
     - Voltage array (`V`)
     - Time to discharge the battery (`s`)
   - Computed battery capacity (`Ah`)
