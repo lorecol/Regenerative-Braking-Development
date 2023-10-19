@@ -32,6 +32,37 @@ else
     error('Failed to connect to the instrument.');
 end
 
+%% Data
+
+Vlimreal = 4.2 * series;     % [V] Voltage upper limit when discharging
+Vlimlow = 2.8 * series;      % [V] Voltage lower limit when discharging
+Ilev = 2 * parallel;         % [A] Current level
+Ts = 0.1;                    % [s] Sampling time
+
+%% Initialize the instrument
+
+% Select data format
+writeline(visaObj, ":FORM:DATA ASCii");
+
+% Enable voltage log
+writeline(visaObj, ':SENSe:ELOG:FUNCtion:VOLTage ON');
+writeline(visaObj, ':SENSe:ELOG:FUNCtion:VOLTage:MINMax OFF');
+
+% Enable current log
+writeline(visaObj, ':SENSe:ELOG:FUNCtion:CURRent ON');
+writeline(visaObj, ':SENSe:ELOG:FUNCtion:CURRent:MINMax OFF');
+
+% Set integration time
+writeline(visaObj, sprintf(':SENS:ELOG:PER %g', Ts));
+
+% Select trigger source for datalog
+writeline(visaObj, 'TRIGger:TRANsient:SOURce BUS');
+
+% Initialize elog system
+writeline(visaObj, ':INITiate:IMMediate:ELOG');
+
+disp('Instrument initialization done.');
+
 %% Let the user choose which battery configuration to test
 
 BatteryList = {'SingleCell', 'Block'};
@@ -42,78 +73,45 @@ Battery = listdlg('PromptString', {'For which type of battery do you want to tes
 if ~isempty(Battery)
     selectedVariable = BatteryList{Battery};
 else
-    fprintf('No battery configuration selected.\n');
+    error('No battery configuration selected.');
 end
 
 % Battery configuration
 if strcmp(selectedVariable, 'SingleCell') == 1
     parallel = 1;               % Number of parallels          
     series = 1;                 % Number of series
+    disp('You are testing a single cell.');
 elseif strcmp(selectedVariable, 'Block') == 1
     parallel = 4;               % Number of parallels          
     series = 3;                 % Number of series
+    disp('You are testing a block - 3s4p configuration.');
 end
-
-%% Data
-
-Vlimreal = 4.2 * series;     % [V] Voltage upper limit when discharging
-Vlimlow = 2.5 * series;      % [V] Voltage lower limit when discharging
-Ilev = 2 * parallel;         % [A] Current level
-Ts = 0.1;                    % [s] Sampling time
-
-%% Initialize the instrument
-
-% Select data format
-writeline(visaObj, ":FORM:DATA ASCii");
-
-% Enable voltage measurements
-writeline(visaObj, ':SENSe:FUNCtion:VOLTage ON');
-
-% Disable voltage measurements
-writeline(visaObj, ':SENSe:FUNCtion:CURRent OFF');
-
-% Enable voltage log
-writeline(visaObj, ':SENSe:ELOG:FUNCtion:VOLTage ON');
-writeline(visaObj, ':SENSe:ELOG:FUNCtion:VOLTage:MINMax OFF');
-
-% Disable current log
-writeline(visaObj, ':SENSe:ELOG:FUNCtion:CURRent ON');
-writeline(visaObj, ':SENSe:ELOG:FUNCtion:CURRent:MINMax OFF');
-
-writeline(visaObj, sprintf(':SENS:ELOG:PER %g', Ts));
-
-% Select trigger source for datalog
-writeline(visaObj, 'TRIGger:TRANsient:SOURce BUS');
-
-% Initialize acquisition system
-writeline(visaObj, ':INIT:ACQ');
-
-% Initialize the elog system
-writeline(visaObj, ':INITiate:IMMediate:ELOG');
-
-disp('Initialization done.');
 
 %% Open the .txt file where to log test data
-
-% Create the output subfolder if it doesn't exist
-if ~exist('output', 'dir')
-    mkdir('output');
-end
 
 % Get the current date as a formatted string (YYYYMMDD format)
 currentDateStr = datestr(now, 'yyyymmdd_HHMM');
 
+% Create the output folder and the test subfolder if they don't exist
+subdir = sprintf('Test_%s', BatteryList{Battery});
+if ~exist('output', 'dir')
+    mkdir('output');
+    mkdir(sprintf('output/%s', subdir));
+else 
+    mkdir(sprintf('output/%s', subdir));
+end
+
 % Define the name of the file where to log data
-FileName = sprintf("output/Test_%s_DataLog_%s.txt", BatteryList{Battery}, currentDateStr);
+FileName = sprintf("output/%s/Test_DataLog_%s.txt", subdir, currentDateStr);
 % Open the file where to log data; create the file if not present
 newFileID = fopen(FileName, 'w+');
 % Open the visualisation of the file where to log data
 open(FileName);
 
 % Wait some time before triggering the elog system
-pause(0.1);
+pause(1);
 
-%% Capacity test
+%% Perform capacity test
 
 % Function to perform full discharge of the battery
 [TimerEnd] = CompleteDischarge(visaObj, Vlimreal, Vlimlow, Ilev, newFileID);
@@ -135,7 +133,7 @@ volt = DataLog(2:2:end);        % Voltage
 % Define time vector
 Time = Ts:Ts:((length(DataLog)/2) * Ts);  
 
-% Plot current and voltage during charge
+% Plot current and voltage during discharge
 figure;
 subplot(1, 2, 1)
 plot(Time, curr);
@@ -152,15 +150,17 @@ ylabel('Voltage [V]');
 % Compute the capacity of the battery
 BatteryCapacity = (abs(Ilev) * TimerEnd)/60;            % [Ah]
 
-fprintf("\nBattery capacity: %g Ah\n", BatteryCapacity);
+fprintf("Battery capacity =  %g Ah\n", BatteryCapacity);
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % Create struct of data
-CapacityMeas.TimeDis = TimerEnd;
+CapacityMeas = struct;
+CapacityMeas.BatteryConfiguration = selectedVariable;
 CapacityMeas.Time = Time;
 CapacityMeas.Current = curr;
 CapacityMeas.Voltage = volt;
+CapacityMeas.TimeDischarge = TimerEnd;
 CapacityMeas.Capacity = BatteryCapacity;
 
 % Save the variable to the .mat file with the date-appended filename
-save(fullfile('output', [sprintf('Test_%s_%s', BatteryList{Battery}, currentDateStr), '.mat'] ), "CapacityMeas");
+save(fullfile(sprintf('output/%s', subdir), [sprintf('Test_%s', currentDateStr), '.mat'] ), "CapacityMeas");

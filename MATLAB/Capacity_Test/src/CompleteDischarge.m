@@ -1,6 +1,6 @@
 function [TimerEnd] = CompleteDischarge(visaObj, Vlimreal, Vlimlow, Ilev, newFileID)
 
-fprintf("Start of capacity test\n");
+disp('Start of capacity test.');
 
 % Set the operating mode to CC
 writeline(visaObj, ':SOURce:FUNCtion CURRENT');
@@ -35,6 +35,7 @@ while true
     % Print the data to the .txt file
     fprintf(newFileID, "%g\n", data);
 
+    % Exit condition --> voltage below the limit
     if data(end) <= Vlimlow
         break;
     end
@@ -51,6 +52,6 @@ writeline(visaObj, ':ABORt:ELOG');
 % Stop the external timer
 TimerEnd = toc(TimerStart)/60;          % [min]
 
-fprintf(" ------> Capacity test completed.\n");
+disp('End of capacity test.');
 
 end
