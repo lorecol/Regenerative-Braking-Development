@@ -45,18 +45,20 @@ Battery = listdlg('PromptString', {'For which type of battery do you want to fit
 if ~isempty(Battery)
     selectedVariable = BatteryList{Battery};
 else
-    fprintf('No battery configuration selected.\n');
+    error('No battery configuration selected.');
 end
 
 % Battery configuration
 if strcmp(selectedVariable, 'SingleCell') == 1
     parallel = 1;               % Number of parallels          
     series = 1;                 % Number of series
-    Capacity = 4;               % [Ah]
+    Capacity = 4;               % Capacity [Ah]
+    disp('You are testing a single cell.');
 elseif strcmp(selectedVariable, 'Block') == 1
     parallel = 4;               % Number of parallels          
     series = 3;                 % Number of series
-    Capacity = 14;              % [Ah]
+    Capacity = 14;              % Capacity [Ah]
+    disp('You are testing a block - 3s4p configuration.');
 end
 
 %% Data                                                    
@@ -84,44 +86,42 @@ cycle = 0;                                                      % Variable to ke
 % Select data format
 writeline(visaObj, ":FORM:DATA ASCii");
 
-% Enable log of voltage data
+% Enable voltage log
 writeline(visaObj, ':SENSe:ELOG:FUNCtion:VOLTage ON');
 writeline(visaObj, ':SENSe:ELOG:FUNCtion:VOLTage:MINMax OFF');
 
-% Disable log of current data
+% Enable current log
 writeline(visaObj, ':SENSe:ELOG:FUNCtion:CURRent ON');
 writeline(visaObj, ':SENSe:ELOG:FUNCtion:CURRent:MINMax OFF');
 
-% Define integration time
+% Set integration time
 writeline(visaObj, sprintf(':SENS:ELOG:PER %g', Ts));
 
-% Select trigger source for data logging
+% Select trigger source for datalog
 writeline(visaObj, 'TRIGger:TRANsient:SOURce BUS');
 
-% Initialize the elog system
+% Initialize elog system
 writeline(visaObj, ':INITiate:IMMediate:ELOG');
 
-
-disp('Initialization done.');
+disp('Instrument initialization done.');
 
 %% Open the .txt file where to log test data
 
 % Get the current date as a formatted string (YYYYMMDD format)
 currentDateStr = datestr(now, 'yyyymmdd_HHMM');
 
-% Create the output folder and the Test subfolder if it doesn't exist
-subdir = sprintf('Test_%s_%s', BatteryList{Battery}, currentDateStr);
+% Create the output folder and the test subfolder if they don't exist
+subdir = sprintf('Test_%s', BatteryList{Battery});
 if ~exist('output', 'dir')
     mkdir('output');
-    mkdir(sprintf('output/%s',subdir));
+    mkdir(sprintf('output/%s', subdir));
 else 
     mkdir(sprintf('output/%s', subdir));
 end
 
 % Define the name of the file where to log data
-FileName = sprintf("output/%s/Test_%s_DataLog_%s.txt",subdir, BatteryList{Battery}, currentDateStr);
-% Open the file where to log data in writing mode; create the file if not 
-% present
+FileName = sprintf("output/%s/Test_DataLog_%s.txt", subdir, currentDateStr);
+% Open the file where to log data; create the file if not present
 newFileID = fopen(FileName, 'w+');
 % Open the visualisation of the file where to log data
 open(FileName);
