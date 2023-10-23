@@ -61,7 +61,7 @@ Rint = 0.02;                                    % [Ohm] Internal impedance of th
 p = 4;                                          % Number of cells in parallel
 s = 108;                                        % Number of cells in series
 C = 4;                                          % [Ah] Cell capacity
-burst = 8.75 * C;                               % [A] Maximum burst discharge current
+burst = 8.75 * C;                               % [A] Maximum burst discharge current: 35 A from datasheet
 
 %% Dynamics computation
 
