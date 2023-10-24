@@ -499,7 +499,7 @@ classdef (Sealed) ParameterEstimationLUTbattery
                                    mydiff(current_dischg, obj.k) < 0); % include the pulse current portion
             % Remove too close indexes
             indxDischgPulseStart = removeCloseIdx(indxDischgPulseStart);
-%             disp(['DEBUG: the indxDischgPulseStart indexes are:', num2str(indxDischgPulseStart)])
+            disp(['DEBUG: the indxDischgPulseStart indexes are:', num2str(indxDischgPulseStart)])
             
             % Number of discharge pulses
             nPulses_discharge    = length(indxDischgPulseStart);
@@ -550,7 +550,7 @@ classdef (Sealed) ParameterEstimationLUTbattery
                                      mydiff(current_chg, obj.k) > 0); % include the pulse current portion
             % Remove too close indexes
             indxChgPulseStart = removeCloseIdx(indxChgPulseStart);
-%             disp(['DEBUG: the indxChgPulseStart indexes are: ', num2str(indxChgPulseStart)])
+            disp(['DEBUG: the indxChgPulseStart indexes are: ', num2str(indxChgPulseStart)])
             
             nPulses_charge    = length(indxChgPulseStart);
             disp(strcat('*** Number of charge pulses    = ',num2str(nPulses_charge)));
@@ -581,7 +581,7 @@ classdef (Sealed) ParameterEstimationLUTbattery
             indxSOCPulseStart = removeCloseIdx2Vec(indxDischgPulseEnd,indxSOCPulseStart);
             indxSOCPulseStart = removeCloseIdx2Vec(indxChgPulseStart,indxSOCPulseStart);
             indxSOCPulseStart = removeCloseIdx2Vec(indxChgPulseEnd,indxSOCPulseStart);
-%             disp(['DEBUG: the indxSOCPulseStart indexes are: ', num2str(indxSOCPulseStart)]);
+            disp(['DEBUG: the indxSOCPulseStart indexes are: ', num2str(indxSOCPulseStart)]);
             
             indxSOCPulseEnd   = find(abs(abs(mydiff(obj.InputTestData.I, obj.k)) - abs(obj.ConstantCurrDischarge)) < obj.ToleranceSOC & ...
                                      mydiff(obj.InputTestData.I, obj.k) > 0);
@@ -594,7 +594,7 @@ classdef (Sealed) ParameterEstimationLUTbattery
             indxSOCPulseEnd = removeCloseIdx2Vec(indxChgPulseEnd,indxSOCPulseEnd);
             
             indxSOCPulseEnd   = indxSOCPulseEnd(indxSOCPulseEnd > indxSOCPulseStart(1));
-%             disp(['DEBUG: the indxSOCPulseEnd indexes are: ', num2str(indxSOCPulseEnd)]);
+            disp(['DEBUG: the indxSOCPulseEnd indexes are: ', num2str(indxSOCPulseEnd)]);
              
             if length(indxSOCPulseEnd) < length(indxSOCPulseStart)
                 indxSOCPulseStart = indxSOCPulseStart(1:length(indxSOCPulseEnd));

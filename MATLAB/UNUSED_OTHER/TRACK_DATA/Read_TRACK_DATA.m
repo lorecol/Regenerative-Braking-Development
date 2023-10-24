@@ -60,10 +60,10 @@ timestamps = data1.(string(varNames(1)));
 x = (timestamps - timestamps(1) )/1e6;
 
 % Create timeseries of data
-timeseries1 = timeseries(y(1:end),x(1:end));
+%timeseries1 = timeseries(y(1:end),x(1:end));
 %====NOTE====
 % If the last values are NaN -> REMOVE THEM:
-% timeseries1 = timeseries(y(1:end-1),x(1:end-1));
+ timeseries1 = timeseries(y(1:end-1),x(1:end-1));
 
 
 % Save timeseries in a nested structure

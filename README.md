@@ -5,7 +5,6 @@ Development of the regenerative brake for UniTn Formula SAE
 
 <img alt="Concept of regenerative braking" src="https://user-images.githubusercontent.com/81318686/203870797-333f265f-15d4-43d7-b862-97a1fa15ece7.png" width="70%">
 
-
 ## Organization of the repository:
 - MATLAB: Matlab scripts and projects
 	- REGENERATION_GENERAL: Script to generate the regenerative brake model informations
