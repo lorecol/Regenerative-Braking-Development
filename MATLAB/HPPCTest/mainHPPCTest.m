@@ -52,8 +52,8 @@ end
 if strcmp(selectedVariable, 'SingleCell') == 1
     parallel = 1;               % Number of parallels          
     series = 1;                 % Number of series
-    Capacity = 4;               % Capacity [Ah]
-    Vlimlow = 2.8 * series;     % Voltage lower limit when discharging [V]
+    Capacity = 3.25;               % Capacity [Ah]
+    Vlimlow = 2.5 * series;     % Voltage lower limit when discharging [V]
     disp('You are testing a single cell.');
 elseif strcmp(selectedVariable, 'Block') == 1
     parallel = 4;               % Number of parallels          
@@ -79,7 +79,7 @@ t_rest_pulse = 40;                                              % [s] Rest perio
 disCapStep = 0.1;                                               % 10% SOC decrement
 tDisCycle = ((Capacity * 3600 * disCapStep)/abs(dischargeC3));  % [min] Discharge cycle time
 Rest = 10 * 60;                                                 % [s] Rest period between discharge cycles
-Rest100SOC = 5 * 60;                                            % [s] Rest period at full capacity
+Rest100SOC = 10 * 60;                                            % [s] Rest period at full capacity
 cycle = 0;                                                      % Variable to keep track of cycles number
 
 %% Initialize the instrument
