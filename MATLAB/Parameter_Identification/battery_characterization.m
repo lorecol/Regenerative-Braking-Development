@@ -103,7 +103,7 @@ toleranceValDischg = 0.5;                              % [A] Current tolerance f
 toleranceValSOC = 0.1;                                 % [A] Current tolerance for SoC sweep
 
 % Paramater for data fitting function: diff = current(i) - current(i - k) 
-k = 1;  
+k = 2;  
 % e.g.  If the power supply instrument in a sampling period of 0.1 s fails 
 %       to reach the desired current, this helps to detect sudden changes.                            
 
