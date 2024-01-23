@@ -70,6 +70,7 @@ volt_fields = fieldnames(volt_Profile);
 maxVoltagePack = max(volt_Profile.(fields{1}).Data);
 minVoltagePack = min(volt_Profile.(fields{1}).Data);
 
+
 % Plot the CURRENT and VOLTAGE Profile
 figure('Name','Drive profile');
 subplot(2,1,1)
@@ -103,6 +104,7 @@ load_system(verifyResPath);
 % Load the Battery Characterization results
 fprintf('Select the Battery Characterization results \n ')
 [charName, path_to_charName] = uigetfile('output/*.mat');
+load(charName);
 % Check file selection
 if isequal(charName, 0)
    error('No file has been selected! Please select a file.');
@@ -126,16 +128,35 @@ disp('StopTime updated.');
 % Saving the system
 save_system(verifyResPath);
 
+% Find the initial SOC of the pack
+if contains(charName,'1s1p')
+    % IF IS A CELL ->  DIVIDE BY 108
+    initialSOC = interp1(battParameters{3}.V0,battParameters{3}.SOC,volt_Profile.timeseries1.Data(1,1)/108);
+elseif contains(charName,'3s4p')
+    % If SIMULATE THE BLOCK -> DIVIDE BY 36; 
+    initialSOC = interp1(battParameters{3}.V0,battParameters{3}.SOC,volt_Profile.timeseries1.Data(1,1)/36);
+end
+%initialSOC = 1;
+%cellCapacity = 15.5;
+disp(['Your battery pack started the test (from telemetry) with: ', num2str(initialSOC*100), ' %SOC'])
+
 % Start Simulating the system
 verifyRes = sim(verifyResPath);
 resDriveProfile = verifyRes.logsout.extractTimetable;
 
+% Display some results
+disp(['The mean of the error is: ', num2str(mean(resDriveProfile.V_error))])
+
 %% Plot results
 figure('Name','Error in voltage prediction');
+hold on
 plot(resDriveProfile.Time,resDriveProfile.V_error);
+yline(mean(resDriveProfile.V_error),'-r',['Mean: ', num2str(mean(resDriveProfile.V_error))]);
 title('Voltage Error (V) Between Original and Parameterized battery pack')
 xlabel('Time (s)');
 ylabel('Voltage Error (V)');
+hold off
+
 figure('Name','Voltage profile of original and parameterized battery pack');
 hold on
 plot(resDriveProfile.Time,resDriveProfile.V_computed, 'DisplayName','V_{computed}');

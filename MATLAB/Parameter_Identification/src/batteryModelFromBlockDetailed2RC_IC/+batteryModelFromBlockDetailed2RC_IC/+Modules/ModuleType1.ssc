@@ -1,0 +1,97 @@
+component ModuleType1
+    % ModuleType1:2
+    % Module Block
+    %    Model resolution: Detailed
+    %    Number of parallel assemblies: 1
+    %    Number of cells per parallel assembly: 1
+    %
+    %    MATLAB version: 9.14
+    %    Simscape Battery version: 1.1
+    %    Simscape code generated on: 09-Nov-2023 10:01:24
+
+    parameters
+        SOC_vecCell = {[0, .1, .25, .5, .75, .9, 1],'1'}; % Vector of state-of-charge values, SOC
+        V0_vecCell = {[3.5057, 3.566, 3.6337, 3.7127, 3.9259, 4.0777, 4.1928],'V'}; % Open-circuit voltage, V0(SOC)
+        V_rangeCell = {[0, inf],'V'}; % Terminal voltage operating range [Min Max]
+        R0_vecCell = {[.0085, .0085, .0087, .0082, .0083, .0085, .0085],'Ohm'}; % Terminal resistance, R0(SOC)
+        AHCell = {27,'A*hr'}; % Cell capacity, AH
+        extrapolation_optionCell = {simscape.enum.extrapolation.nearest,'1'}; % Extrapolation method for all tables
+        R1_vecCell = {[.0029, .0024, .0026, .0016, .0023, .0018, .0017],'Ohm'}; % First polarization resistance, R1(SOC)
+        tau1_vecCell = {[36, 45, 105, 29, 77, 33, 39],'s'}; % First time constant, tau1(SOC)
+        R2_vecCell = {[.0029, .0024, .0026, .0016, .0023, .0018, .0017],'Ohm'}; % Second polarization resistance, R2(SOC)
+        tau2_vecCell = {[36, 45, 105, 29, 77, 33, 39],'s'}; % Second time constant, tau2(SOC)
+    end
+
+    parameters(ExternalAccess=none)
+        P = 1; % Batteries in Parallel
+        S = 1; % Batteries in Series
+        CellCount = P*S; % Number of cells in battery
+    end
+
+    nodes
+        p = foundation.electrical.electrical; % +
+        n = foundation.electrical.electrical; % -
+    end
+
+    variables
+        iCell = {0,'A'}; % Cell current (positive in)
+        vCell = {0,'V'}; % Cell terminal voltage
+        socCell = {value={1,'1'},priority=priority.high}; % Cell state of charge
+        numCyclesCell = {value={0,'1'},priority=priority.high}; % Cell discharge cycles
+        vParallelAssembly = {value={0,'V'},priority=priority.none}; % Parallel Assembly Voltage
+        socParallelAssembly = {value={1,'1'},priority=priority.none}; % Parallel Assembly state of charge
+    end
+
+    equations
+        assert(length(iCell) == CellCount);
+        assert(length(vCell) == CellCount);
+        assert(length(socCell) == CellCount);
+        assert(length(numCyclesCell) == CellCount);
+        assert(length(vParallelAssembly) == S);
+        assert(length(socParallelAssembly) == S);
+    end
+
+    connections
+        connect(p,NewParallelAssembly(1).p);
+        connect(n,NewParallelAssembly(end).n);
+    end
+
+    annotations
+        [p] : Side=top;
+        [n] : Side=bottom;
+        UILayout = [UIGroup("Main",SOC_vecCell,V0_vecCell,V_rangeCell,R0_vecCell,AHCell,extrapolation_optionCell),...
+            UIGroup("Dynamics",R1_vecCell,tau1_vecCell,R2_vecCell,tau2_vecCell)];
+        Icon = 'module.svg';
+    end
+
+    for Sidx = 1:S
+        components(ExternalAccess=observe,CompileReuse=true)
+            NewParallelAssembly(Sidx) = batteryModelFromBlockDetailed2RC_IC.ParallelAssemblies.ParallelAssemblyType1(...
+                P = P,SOC_vecCell = SOC_vecCell,...
+                V0_vecCell = V0_vecCell,V_rangeCell = V_rangeCell,R0_vecCell = R0_vecCell,...
+                AHCell = AHCell,extrapolation_optionCell = extrapolation_optionCell,...
+                R1_vecCell = R1_vecCell,tau1_vecCell = tau1_vecCell,R2_vecCell = R2_vecCell,...
+                tau2_vecCell = tau2_vecCell,iCell.priority = priority.none,...
+                vCell.priority = priority.none,socCell.priority = priority.none,...
+                numCyclesCell.priority = priority.none,vParallelAssembly.priority = priority.none,...
+                socParallelAssembly.priority = priority.none);
+        end
+    end
+
+    for Sidx = 1:S-1
+        connections
+            connect(NewParallelAssembly(Sidx).n,NewParallelAssembly(Sidx+1).p);
+        end
+    end
+
+    for Sidx = 1:S
+        equations
+            NewParallelAssembly(Sidx).iCell == reshape(iCell((Sidx*P-(P-1)):(Sidx*P)),P,1);
+            NewParallelAssembly(Sidx).vCell == reshape(vCell((Sidx*P-(P-1)):(Sidx*P)),P,1);
+            NewParallelAssembly(Sidx).socCell == reshape(socCell((Sidx*P-(P-1)):(Sidx*P)),P,1);
+            NewParallelAssembly(Sidx).numCyclesCell == reshape(numCyclesCell((Sidx*P-(P-1)):(Sidx*P)),P,1);
+            NewParallelAssembly(Sidx).vParallelAssembly == vParallelAssembly(Sidx);
+            NewParallelAssembly(Sidx).socParallelAssembly == socParallelAssembly(Sidx);
+        end
+    end
+end
