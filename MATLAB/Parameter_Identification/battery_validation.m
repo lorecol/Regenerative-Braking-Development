@@ -145,7 +145,9 @@ verifyRes = sim(verifyResPath);
 resDriveProfile = verifyRes.logsout.extractTimetable;
 
 % Display some results
-disp(['The mean of the error is: ', num2str(mean(resDriveProfile.V_error))])
+disp(['The mean of the error is: ', num2str(mean(resDriveProfile.V_error)), 'V'])
+disp('Correlation coefficient: ')
+disp(corrcoef(resDriveProfile.V_original,resDriveProfile.V_computed))
 
 %% Plot results
 figure('Name','Error in voltage prediction');
@@ -167,11 +169,22 @@ ylabel('Voltage (V)');
 legend('Location','best')
 hold off
 
+[f, gof]=fit(resDriveProfile.V_original,resDriveProfile.V_computed, 'poly1');
 figure('Name', 'V_computed/V_original');
-plot(resDriveProfile.V_original,resDriveProfile.V_computed, "o");
+hold on
+plot(resDriveProfile.V_original,resDriveProfile.V_computed, "o", 'DisplayName','Data points')
+plot(resDriveProfile.V_original,f(resDriveProfile.V_original), 'LineWidth',2, 'DisplayName','Linear fit')
+caption= sprintf('y=%.2d \\cdot x + %.2d;\nR^2=%0.2f', f.p1, f.p2, gof.rsquare);
 title('V_{computed}/V_{original}')
 xlabel('V_{original}');
 ylabel('V_{computed}');
+xlim([min(250), max(resDriveProfile.V_original)]); 
+ylim([min(250), max(resDriveProfile.V_original)]); 
+xl=xlim;
+yl=ylim;
+text(0.05*(xl(2)-xl(1)) + xl(1), 0.9*(yl(2)-yl(1)) + yl(1), caption, 'FontSize',10, 'Color', 'r', 'FontWeight','bold')
+legend('Location','southwest')
+hold off
 
 
 disp('*** Battery Validation finished!!');
