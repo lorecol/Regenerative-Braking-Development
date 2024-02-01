@@ -126,7 +126,7 @@ disp(['-----------------------------------------------------------------' ...
 fprintf('ELECTRONICS:\n');
 
 % Total impedance of the accumulator
-Rtot = p * (1/(s/Rint));                % [Ohm]
+Rtot = Rint*s/p;                % [Ohm]
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %   EQUATIONS TO COMPUTE THE MAXIMUM ADMISSIBLE REGENERATIVE CURRENT:
